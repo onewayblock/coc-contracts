@@ -7,9 +7,13 @@ This document provides a brief overview of the main smart contracts in the proje
 ## Table of Contents
 
 1. [HardCurrencyShop](#hardcurrencys-shop)
-2. [ReferralShare](#referralshare)
-3. [UniswapHelper](#uniswaphelper)
-4. [Verification](#verification)
+2. [NFT](#nft)
+3. [NFTSale & OrdinaryNFTSale](#nftsale--ordinarynftsale)
+4. [WhitelistNFTSale](#whitelistnftsale)
+5. [ReferralShare](#referralshare)
+6. [Token (USDC)](#token-usdc)
+7. [UniswapHelper](#uniswaphelper)
+8. [Verification](#verification)
 
 ---
 
@@ -38,6 +42,73 @@ Facilitates the purchase of hard currency using supported payment tokens or ETH.
 
 ---
 
+## NFT
+
+**Purpose:**  
+Implements an ERC721-based NFT contract with enhanced metadata management, minting controls, and royalty support.
+
+**Key Features:**
+
+- Uses ERC721A for efficient batch minting.
+- Only allows minting from whitelisted contracts.
+- Supports metadata updates through backend signature verification (preventing unauthorized changes).
+- Implements EIP-2981 for royalty payments.
+- Features a transfer lock that can be disabled by the owner to prevent unwanted transfers.
+
+**Flow:**
+
+1. Whitelisted contracts invoke `mint` or `mintWithSameMetadata` to create new tokens along with their metadata.
+2. Metadata can later be updated via `updateMetadata` if a valid backend signature is provided.
+3. Royalty information can be updated using `setRoyaltyInfo`.
+4. The owner may unlock transfers by calling `unlockTransfers` once initial restrictions are no longer needed.
+
+---
+
+## NFTSale & OrdinaryNFTSale
+
+**Purpose:**  
+Manages NFT sale events, including listing NFTs for sale, processing purchases, and handling limits per user.
+
+**Key Features:**
+
+- Each sale is defined by a struct containing details like the NFT contract address, token metadata, total quantity, USD price, and per-user limits.
+- Allows listing, delisting, pausing, and renewing NFT sales.
+- Supports payments in multiple tokens and ETH.
+- Integrates with `Verification` to record and validate spending.
+- Uses `UniswapHelper` to compute required token amounts if the payment token differs from USDC.
+- Provides a crossmint flow (`buyNFTFromCrossmint`) for purchases made by a designated Crossmint address.
+
+**Flow:**
+
+1. The admin lists an NFT for sale using `listNFTForSale` with the sale details.
+2. Buyers call `buyNFT` to purchase NFTs, subject to sale limits and spending validation.
+3. The contract processes the payment, records the spending, mints NFTs via the NFT contract, and emits the `NFTBought` event.
+4. The crossmint purchase flow (`buyNFTFromCrossmint`) works similarly but is restricted to a specific Crossmint address.
+
+**OrdinaryNFTSale:**  
+A standard implementation of `NFTSale` without additional whitelist functionality, intended for general NFT sales.
+
+---
+
+## WhitelistNFTSale
+
+**Purpose:**  
+Extends the `NFTSale` contract by adding whitelist functionality using a Merkle tree.
+
+**Key Features:**
+
+- Maintains a Merkle root for each sale.
+- Requires users to provide a valid Merkle proof before participating in the NFT sale.
+- Enforces that only whitelisted addresses can purchase NFTs.
+
+**Flow:**
+
+1. The admin sets the Merkle root for a sale using `setMerkleRoot`.
+2. When purchasing via `buyNFT` or `buyNFTFromCrossmint`, users must include a valid Merkle proof.
+3. The contract verifies the proof and, if valid, proceeds with the purchase.
+
+---
+
 ## ReferralShare
 
 **Purpose:**  
@@ -55,6 +126,23 @@ Manages deposits and withdrawals associated with referral codes, allowing users 
 1. Whitelisted contracts call `recordDeposit` to credit funds to a referral code.
 2. Users can later call `withdrawBalances` to claim their referral rewards, provided they supply a valid backend signature.
 3. Funds are transferred to the user (either as tokens or ETH), and a `WithdrawalRecorded` event is emitted.
+
+---
+
+## Token
+
+**Purpose:**  
+An implementation of the ERC-20 token.
+
+**Key Features:**
+
+- Standard ERC20 functionality with additional support for EIP-2612 permits.
+- Owner-controlled minting functionality for supply management.
+
+**Flow:**
+
+1. The owner can mint new tokens to any address by calling the `mint` function.
+2. Token holders can use standard ERC20 functions (transfer, approve, etc.) along with permit functionality.
 
 ---
 

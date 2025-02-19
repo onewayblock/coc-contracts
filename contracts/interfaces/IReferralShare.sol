@@ -65,10 +65,12 @@ interface IReferralShare {
     /**
      * @dev Withdraws all tokens and ether for a referral code
      * @param _referralCode The referral code to withdraw from
+     * @param _timestamp The timestamp of request withdrawal
      * @param _signature Backend signer signature
      */
     function withdrawBalances(
         string memory _referralCode,
+        uint256 _timestamp,
         bytes memory _signature
     ) external;
 

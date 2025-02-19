@@ -70,7 +70,15 @@ describe('ReferralShare Contract', () => {
   describe('withdrawBalances', () => {
     it('Should allow a user to withdraw all balances with a valid signature', async () => {
       const amount = ethers.parseEther('1');
-      const signature = await getSignature(await referralShare.getAddress(), 'withdrawBalances', user.address, referralCode, backendSigner);
+      const timestamp = Date.now();
+      const signature = await getSignature(
+          await referralShare.getAddress(),
+          'withdrawBalances',
+          user.address,
+          referralCode,
+          timestamp,
+          backendSigner
+      );
 
       await user.sendTransaction({
         to: referralShare.target,
@@ -83,7 +91,7 @@ describe('ReferralShare Contract', () => {
 
       await referralShare.connect(whitelistedContract).recordDeposit(referralCode, token.target, amount);
 
-      await expect(referralShare.connect(user).withdrawBalances(referralCode, signature))
+      await expect(referralShare.connect(user).withdrawBalances(referralCode, timestamp, signature))
         .to.emit(referralShare, 'WithdrawalRecorded')
         .withArgs(referralCode, ethers.ZeroAddress, amount)
         .and.to.emit(referralShare, 'WithdrawalRecorded')
@@ -92,11 +100,18 @@ describe('ReferralShare Contract', () => {
 
     it('Should revert if signature is invalid', async () => {
       const amount = ethers.parseEther('1');
-      const invalidSignature = await getSignature(await referralShare.getAddress(), 'withdrawBalances',user.address, referralCode, newSigner);
+      const timestamp = Date.now();
+      const invalidSignature = await getSignature(
+          await referralShare.getAddress(),
+          'withdrawBalances',
+          user.address,
+          referralCode,
+          timestamp,
+          newSigner);
 
       await referralShare.connect(whitelistedContract).recordDeposit(referralCode, ethers.ZeroAddress, amount);
 
-      await expect(referralShare.connect(user).withdrawBalances(referralCode, invalidSignature)).to.be.revertedWithCustomError(verification, 'InvalidSigner');
+      await expect(referralShare.connect(user).withdrawBalances(referralCode, timestamp, invalidSignature)).to.be.revertedWithCustomError(verification, 'InvalidSigner');
     });
   });
 
@@ -136,11 +151,18 @@ describe('ReferralShare Contract', () => {
     });
   });
 
-  const getSignature = async (contractAddress: string, methodName: string, userAddress: string, value: any, signer: SignerWithAddress) => {
+  const getSignature = async (
+      contractAddress: string,
+      methodName: string,
+      userAddress: string,
+      value: any,
+      timestamp: number,
+      signer: SignerWithAddress
+  ) => {
     const messageHash = ethers.keccak256(
         ethers.AbiCoder.defaultAbiCoder().encode(
-            ['address', 'string', 'address', typeof value === 'boolean' ? 'bool' : typeof value === 'string' ? 'string' : 'uint256', 'uint256'],
-            [contractAddress, methodName, userAddress, value, chainId]
+            ['address', 'string', 'address', typeof value === 'boolean' ? 'bool' : typeof value === 'string' ? 'string' : 'uint256', 'uint256', 'uint256'],
+            [contractAddress, methodName, userAddress, value, timestamp, chainId]
         )
     );
     return await signer.signMessage(ethers.getBytes(messageHash));

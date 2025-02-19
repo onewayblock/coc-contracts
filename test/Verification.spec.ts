@@ -29,63 +29,6 @@ describe('Verification Contract', () => {
     });
   });
 
-  describe('Set Referrer', () => {
-    it('Should allow a user to set a referrer with a valid signature', async () => {
-      const referrerCode = 'XYZ001';
-
-      const signature = await getSignature(await verification.getAddress(), 'setReferrer', user.address, referrerCode, backendSigner);
-
-      await expect(verification.connect(user).setReferrer(user.address, referrerCode, signature)).to.emit(verification, 'ReferrerAdded').withArgs(user.address, referrerCode);
-
-      expect(await verification.getReferrer(user.address)).to.equal(referrerCode);
-    });
-
-    it('Should not allow a user to overwrite an existing referrer', async () => {
-      const referrerCode = 'XYY001';
-
-      const signature = await getSignature(await verification.getAddress(), 'setReferrer', user.address, referrerCode, backendSigner);
-
-      await verification.connect(user).setReferrer(user.address, referrerCode, signature);
-
-      await expect(verification.connect(user).setReferrer(user.address, referrerCode, signature)).to.be.revertedWithCustomError(verification, 'DataAlreadySet');
-    });
-
-    it('Should revert when setting referrer with an invalid signature', async () => {
-      const referrerCode = 'XYZ001';
-
-      const invalidSignature = await getSignature(await verification.getAddress(), 'setReferrer', user.address, referrerCode, newSigner);
-
-      await expect(verification.connect(user).setReferrer(user.address, referrerCode, invalidSignature)).to.be.revertedWithCustomError(verification, 'InvalidSigner');
-    });
-
-    it('Should correctly handle multiple users with unique referrers', async () => {
-      const referrerCode1 = 'ABC123';
-      const referrerCode2 = 'XYZ789';
-
-      const signature1 = await getSignature(await verification.getAddress(), 'setReferrer', user.address, referrerCode1, backendSigner);
-      const signature2 = await getSignature(await verification.getAddress(), 'setReferrer', newSigner.address, referrerCode2, backendSigner);
-
-      await verification.connect(user).setReferrer(user.address, referrerCode1, signature1);
-      await verification.connect(newSigner).setReferrer(newSigner.address, referrerCode2, signature2);
-
-      expect(await verification.getReferrer(user.address)).to.equal(referrerCode1);
-      expect(await verification.getReferrer(newSigner.address)).to.equal(referrerCode2);
-    });
-
-    it('Should correctly handle multiple users with same referrers', async () => {
-      const referrerCode = 'ABC123';
-
-      const signature1 = await getSignature(await verification.getAddress(), 'setReferrer', user.address, referrerCode, backendSigner);
-      const signature2 = await getSignature(await verification.getAddress(), 'setReferrer', newSigner.address, referrerCode, backendSigner);
-
-      await verification.connect(user).setReferrer(user.address, referrerCode, signature1);
-      await verification.connect(newSigner).setReferrer(newSigner.address, referrerCode, signature2);
-
-      expect(await verification.getReferrer(user.address)).to.equal(referrerCode);
-      expect(await verification.getReferrer(newSigner.address)).to.equal(referrerCode);
-    });
-  });
-
   describe('Set KYC and AML', () => {
     it('Should allow a user to set base KYC with a valid signature', async () => {
       const baseKyc = true;

@@ -86,12 +86,13 @@ contract ReferralShare is Initializable, OwnableUpgradeable, IReferralShare {
      */
     function withdrawBalances(
         string memory _referralCode,
+        uint256 _timestamp,
         bytes memory _signature
     ) external override {
         address sender = _msgSender();
 
         IVerification(verification).verifySignaturePublic(
-            keccak256(abi.encode(address(this), 'withdrawBalances', sender, _referralCode, block.chainid)),
+            keccak256(abi.encode(address(this), 'withdrawBalances', sender, _referralCode, _timestamp, block.chainid)),
             _signature
         );
 

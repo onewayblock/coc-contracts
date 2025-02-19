@@ -51,9 +51,6 @@ contract Verification is
     /// @notice Stores the verification data for each user
     mapping(address => UserVerification) private userVerifications;
 
-    /// @notice Stores the referrer code associated with each user
-    mapping(address => string) private userReferrers;
-
     /// @notice Mapping of user addresses to their total spending in USD
     mapping(address => uint256) private userTotalSpending;
 
@@ -235,52 +232,10 @@ contract Verification is
     /**
      * @inheritdoc IVerification
      */
-    function setReferrer(
-        address _user,
-        string memory _referrerCode,
-        bytes memory _signature
-    ) external override {
-        if (bytes(userReferrers[_user]).length != 0) {
-            revert DataAlreadySet();
-        }
-
-        if (
-            !_verifySignature(
-                keccak256(
-                    abi.encode(
-                        address(this),
-                        "setReferrer",
-                        _user,
-                        _referrerCode,
-                        block.chainid
-                    )
-                ),
-                _signature
-            )
-        ) {
-            revert InvalidSigner();
-        }
-
-        userReferrers[_user] = _referrerCode;
-        emit ReferrerAdded(_user, _referrerCode);
-    }
-
-    /**
-     * @inheritdoc IVerification
-     */
     function getVerification(
         address _user
     ) external view override returns (UserVerification memory) {
         return userVerifications[_user];
-    }
-
-    /**
-     * @inheritdoc IVerification
-     */
-    function getReferrer(
-        address _user
-    ) external view override returns (string memory) {
-        return userReferrers[_user];
     }
 
     /**
