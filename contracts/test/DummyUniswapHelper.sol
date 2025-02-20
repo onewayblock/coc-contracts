@@ -20,4 +20,12 @@ contract DummyUniswapHelper {
     ) external pure returns (uint256) {
         return amount;
     }
+
+    function getTokenAmountForOutput(
+        address, /*_paymentToken*/
+        address, /*USDC*/
+        uint256 amount
+    ) external pure returns (uint256) {
+        return amount;
+    }
 }

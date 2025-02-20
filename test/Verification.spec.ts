@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { ethers } from 'hardhat';
+import {ethers, upgrades} from 'hardhat';
 import { Verification } from '../typechain-types';
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 
@@ -12,10 +12,13 @@ describe('Verification Contract', () => {
   beforeEach(async () => {
     [owner, user, backendSigner, newSigner] = await ethers.getSigners();
 
-    const Verif = await ethers.getContractFactory('Verification');
-    verification = await Verif.deploy();
-    await verification.waitForDeployment();
-    await verification.initialize(backendSigner.address, [owner.address], owner.address);
+
+    const Verif = await ethers.getContractFactory("Verification");
+    verification = await upgrades.deployProxy(
+        Verif,
+        [backendSigner.address, [owner.address], owner.address],
+        { initializer: "initialize" }
+    );
   });
 
   describe('Deployment', () => {
@@ -25,7 +28,12 @@ describe('Verification Contract', () => {
 
     it('Should revert when deployed with zero backend signer address', async () => {
       const Verif = await ethers.getContractFactory('Verification');
-      await expect((await Verif.deploy()).initialize(ethers.ZeroAddress, [owner.address], owner.address)).to.be.revertedWithCustomError(verification, 'InvalidAddress');
+
+      await expect(upgrades.deployProxy(
+          Verif,
+          [ethers.ZeroAddress, [owner.address], owner.address],
+          { initializer: "initialize" }
+      )).to.be.revertedWithCustomError(verification, 'InvalidAddress');
     });
   });
 
@@ -39,16 +47,6 @@ describe('Verification Contract', () => {
 
       const verificationStatus = await verification.getVerification(user.address);
       expect(verificationStatus.baseKyc).to.equal(baseKyc);
-    });
-
-    it('Should not allow a user to overwrite base KYC', async () => {
-      const baseKyc = true;
-
-      const signature = await getSignature(await verification.getAddress(), 'setBaseKyc', user.address, baseKyc, backendSigner);
-
-      await verification.connect(user).setBaseKyc(user.address, baseKyc, signature);
-
-      await expect(verification.connect(user).setBaseKyc(user.address, baseKyc, signature)).to.be.revertedWithCustomError(verification, 'DataAlreadySet');
     });
 
     it('Should allow a user to set advanced AML score with a valid signature', async () => {

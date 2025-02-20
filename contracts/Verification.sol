@@ -2,7 +2,6 @@
 pragma solidity 0.8.28;
 
 import {IVerification} from "./interfaces/IVerification.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol"; // Library for working with ECDSA signatures
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol"; // Utility for Ethereum-signed message hashes
@@ -14,7 +13,6 @@ import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/Messa
  * @dev Implementation of the IVerification interface
  */
 contract Verification is
-    Initializable,
     OwnableUpgradeable,
     IVerification
 {
@@ -60,8 +58,10 @@ contract Verification is
     /// @notice Contracts allowed to call restricted methods
     mapping(address => bool) private allowedContracts;
 
-    /// @notice Trusted forwarder address for meta-transactions
-    address public trustedForwarder;
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
 
     /**
      * @dev Initializer of the contract with a backend signer address and owner address.
@@ -89,7 +89,9 @@ contract Verification is
         baseAmlScoreLimit = 50;
         advancedAmlScoreLimit = 50;
 
-        for (uint256 i = 0; i < _allowedContracts.length; i++) {
+        uint256 length = _allowedContracts.length;
+
+        for (uint256 i = 0; i < length; i++) {
             if (_allowedContracts[i] == address(0)) {
                 revert InvalidAddress();
             }
@@ -105,10 +107,6 @@ contract Verification is
         bool _baseKyc,
         bytes memory _signature
     ) external override {
-        if (userVerifications[_user].baseKyc) {
-            revert DataAlreadySet();
-        }
-
         if (
             !_verifySignature(
                 keccak256(
@@ -138,10 +136,6 @@ contract Verification is
         bool _advancedKyc,
         bytes memory _signature
     ) external override {
-        if (userVerifications[_user].advancedKyc) {
-            revert DataAlreadySet();
-        }
-
         if (
             !_verifySignature(
                 keccak256(
@@ -171,10 +165,6 @@ contract Verification is
         uint256 _baseAMLScore,
         bytes memory _signature
     ) external override {
-        if (userVerifications[_user].baseAMLScore != 0) {
-            revert DataAlreadySet();
-        }
-
         if (
             !_verifySignature(
                 keccak256(
@@ -204,10 +194,6 @@ contract Verification is
         uint256 _advancedAMLScore,
         bytes memory _signature
     ) external override {
-        if (userVerifications[_user].advancedAMLScore != 0) {
-            revert DataAlreadySet();
-        }
-
         if (
             !_verifySignature(
                 keccak256(
@@ -281,6 +267,10 @@ contract Verification is
     function addAllowedContract(
         address _contractAddress
     ) external override onlyOwner {
+        if(_contractAddress == address(0)) {
+            revert InvalidAddress();
+        }
+
         allowedContracts[_contractAddress] = true;
     }
 
@@ -462,7 +452,9 @@ contract Verification is
         uint256 totalSpending = 0;
 
         SpendingRecord[] memory records = userSpendingHistory[_user];
-        for (uint256 i = records.length; i > 0; i--) {
+        uint256 length = records.length;
+
+        for (uint256 i = length; i > 0; i--) {
             if (block.timestamp - records[i - 1].timestamp > 24 hours) {
                 break;
             }
@@ -512,13 +504,5 @@ contract Verification is
             _messageHash
         );
         return ethSignedMessageHash.recover(_signature) == backendSigner;
-    }
-
-    /*
-     * @dev Set the address for paymaster
-     * @param _trustedForwarder address of paymaster
-     */
-    function setTrustedForwarder(address _trustedForwarder) external onlyOwner {
-        trustedForwarder = _trustedForwarder;
     }
 }

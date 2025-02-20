@@ -22,6 +22,11 @@ contract UniswapHelper is Initializable, IUniswapHelper {
     /// @notice Uniswap contract for Uniswap fee calculations
     IUniswapV3Factory public uniswapFactory;
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     /**
      * @dev Constructor initializes the contract with the necessary parameters.
      * @param _usdcAddress Address of the USDC token
@@ -95,7 +100,9 @@ contract UniswapHelper is Initializable, IUniswapHelper {
         address _tokenIn,
         address _tokenOut
     ) public view returns (uint24 feeTier) {
-        for (uint256 i = 0; i < AVAILABLE_FEE_TIERS.length; i++) {
+        uint256 length = AVAILABLE_FEE_TIERS.length;
+
+        for (uint256 i = 0; i < length; i++) {
             address pool = uniswapFactory.getPool(
                 _tokenIn,
                 _tokenOut,

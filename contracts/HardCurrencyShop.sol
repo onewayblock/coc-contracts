@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import {IUniswapHelper} from "./interfaces/IUniswapHelper.sol";
+import {UniswapHelper} from "./UniswapHelper.sol";
 import {IHardCurrencyShop} from "./interfaces/IHardCurrencyShop.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IUniswapV3Factory} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
-import {IQuoterV2} from "@uniswap/v3-periphery/contracts/interfaces/IQuoterV2.sol";
 import {IVerification} from "./interfaces/IVerification.sol";
 
 /**
@@ -17,9 +16,9 @@ import {IVerification} from "./interfaces/IVerification.sol";
  * @dev Implementation of the IHardCurrencyShop interface
  */
 contract HardCurrencyShop is
-Initializable,
-OwnableUpgradeable,
-IHardCurrencyShop
+    OwnableUpgradeable,
+    ReentrancyGuardUpgradeable,
+    IHardCurrencyShop
 {
     using SafeERC20 for IERC20;
 
@@ -34,6 +33,11 @@ IHardCurrencyShop
 
     /// @notice Trusted forwarder address for meta-transactions
     address public trustedForwarder;
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
 
     /**
      * @dev Initializes the contract with the necessary parameters.
@@ -54,13 +58,20 @@ IHardCurrencyShop
         }
 
         __Ownable_init(msg.sender);
+        __ReentrancyGuard_init();
 
         verification = _verification;
         uniswapHelper = _uniswapHelper;
 
-        for (uint256 i = 0; i < _paymentTokens.length; i++) {
+        uint256 length = _paymentTokens.length;
+        for (uint256 i = 0; i < length; i++) {
+            for (uint256 j = 0; j < i; j++) {
+                if(_paymentTokens[i] == _paymentTokens[j]) {
+                    revert DuplicateAddress();
+                }
+            }
+
             supportedTokens.push(_paymentTokens[i]);
-            emit PaymentTokenAdded(_paymentTokens[i]);
         }
     }
 
@@ -72,19 +83,43 @@ IHardCurrencyShop
         address _paymentToken,
         uint256 _expectedTokenAmount,
         uint256 _slippageTolerance
-    ) external payable override {
+    ) external payable override nonReentrant {
         address sender = _msgSender();
 
         if (!_isTokenSupported(_paymentToken)) {
             revert TokenNotSupported();
+        }
+        if(_slippageTolerance == 0 || _slippageTolerance > 3000) {
+            revert InvalidSlippage();
+        }
+        if(_expectedTokenAmount == 0) {
+            revert InvalidExpectedAmount();
+        }
+
+        if (_paymentToken != address(0) && msg.value > 0) {
+            revert ETHNotAllowedWithTokenPayment();
         }
 
         IVerification(verification).validateSpending(sender, _USDAmount);
 
         uint256 totalTokenAmount = _USDAmount;
 
-        if (_paymentToken != IUniswapHelper(uniswapHelper).getUSDCAddress()) {
-            totalTokenAmount = IUniswapHelper(uniswapHelper).getTokenAmount(
+        if (_paymentToken != UniswapHelper(uniswapHelper).getUSDCAddress()) {
+            uint256 referenceTokenAmount = UniswapHelper(uniswapHelper)
+                .getTokenAmountForOutput(
+                    _paymentToken,
+                    UniswapHelper(uniswapHelper).getUSDCAddress(),
+                    _USDAmount
+                );
+
+            if(_expectedTokenAmount < referenceTokenAmount - ((referenceTokenAmount * 30) / 100)) {
+                revert expectedTokenAmountExceedsDeviation();
+            }
+            if(_expectedTokenAmount > referenceTokenAmount + ((referenceTokenAmount * 30) / 100)) {
+                revert expectedTokenAmountExceedsDeviation();
+            }
+
+            totalTokenAmount = UniswapHelper(uniswapHelper).getTokenAmount(
                 _USDAmount,
                 _paymentToken,
                 _expectedTokenAmount,
@@ -111,8 +146,12 @@ IHardCurrencyShop
         uint256 secondAmount = totalTokenAmount - firstAmount;
 
         if (_paymentToken == address(0)) {
-            payable(firstTreasure).transfer(firstAmount);
-            payable(secondTreasure).transfer(secondAmount);
+            (bool success1, ) = payable(firstTreasure).call{value: firstAmount}("");
+            (bool success2, ) = payable(secondTreasure).call{value: secondAmount}("");
+
+            if(!success1 || !success2) {
+                revert ETHSendFailed();
+            }
         } else {
             IERC20(_paymentToken).safeTransfer(firstTreasure, firstAmount);
             IERC20(_paymentToken).safeTransfer(secondTreasure, secondAmount);
@@ -188,7 +227,17 @@ IHardCurrencyShop
 
             // Refund excess ETH
             if (msg.value > _tokenAmount) {
-                payable(_sender).transfer(msg.value - _tokenAmount);
+                if (_isContract(_sender)) {
+                    if(address(_sender).code.length == 0) {
+                        revert ContractCannotReceiveETH();
+                    }
+                }
+
+                (bool success, ) = payable(_sender).call{value: msg.value - _tokenAmount}("");
+
+                if(!success) {
+                    revert ETHSendFailed();
+                }
             }
         } else {
             IERC20(_paymentToken).safeTransferFrom(_sender, address(this), _tokenAmount);
@@ -201,7 +250,9 @@ IHardCurrencyShop
      * @return Boolean indicating whether the token is supported.
      */
     function _isTokenSupported(address _token) private view returns (bool) {
-        for (uint256 i = 0; i < supportedTokens.length; i++) {
+        uint256 length = supportedTokens.length;
+
+        for (uint256 i = 0; i < length; i++) {
             if (supportedTokens[i] == _token) {
                 return true;
             }
@@ -215,7 +266,9 @@ IHardCurrencyShop
      * @return Boolean indicating whether the removal was successful.
      */
     function _removePaymentToken(address _token) private returns (bool) {
-        for (uint256 i = 0; i < supportedTokens.length; i++) {
+        uint256 length = supportedTokens.length;
+
+        for (uint256 i = 0; i < length; i++) {
             if (supportedTokens[i] == _token) {
                 supportedTokens[i] = supportedTokens[supportedTokens.length - 1];
                 supportedTokens.pop();
@@ -245,5 +298,18 @@ IHardCurrencyShop
         } else {
             sender = msg.sender;
         }
+    }
+
+    /**
+     * @dev Checks if an address is a contract
+     * @param _addr Address to check
+     * @return bool True if the address is a contract, false otherwise
+     */
+    function _isContract(address _addr) private view returns (bool) {
+        uint256 size;
+        assembly {
+            size := extcodesize(_addr)
+        }
+        return size > 0;
     }
 }

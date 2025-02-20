@@ -21,6 +21,18 @@ interface IReferralShare {
     /// @notice Reverts when the provided address is invalid (e.g., zero address)
     error InvalidAddress();
 
+    /// @dev Error when we're sending ethereum to address
+    error ETHSendFailed();
+
+    /// @dev Error when provided duplicated address
+    error DuplicateAddress();
+
+    /// @dev Error when user send ETH while payment token is different
+    error ETHNotAllowedWithTokenPayment();
+
+    /// @dev Error when invalid ETH amount was sent
+    error InvalidETHAmount();
+
     /// @notice Event emitted when tokens or ether are deposited to a referral code
     event DepositRecorded(
         string indexed referralCode,
@@ -49,18 +61,6 @@ interface IReferralShare {
 
     /// @dev Event emitted when the Verification address is updated
     event VerificationAddressUpdated(address newKYCAMLVerification);
-
-    /**
-     * @dev Records tokens or ether deposited to a referral code
-     * @param _referralCode The referral code to credit
-     * @param _token Address of the token being deposited (use address(0) for ether)
-     * @param _amount Amount of tokens or ether to record
-     */
-    function recordDeposit(
-        string memory _referralCode,
-        address _token,
-        uint256 _amount
-    ) external;
 
     /**
      * @dev Withdraws all tokens and ether for a referral code

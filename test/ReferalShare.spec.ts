@@ -1,6 +1,6 @@
 import { expect } from 'chai';
-import { ethers } from 'hardhat';
-import {ReferralShare, Token, Verification} from '../typechain-types';
+import { ethers, upgrades } from 'hardhat';
+import { ReferralShare, Token, Verification } from '../typechain-types';
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 
 describe('ReferralShare Contract', () => {
@@ -15,21 +15,28 @@ describe('ReferralShare Contract', () => {
   beforeEach(async () => {
     [owner, user, newSigner, whitelistedContract, backendSigner] = await ethers.getSigners();
 
-    const Verif = await ethers.getContractFactory('Verification');
-    verification = await Verif.deploy();
-    await verification.waitForDeployment();
-    await verification.initialize(backendSigner.address, [owner.address], owner.address);
+    const Verif = await ethers.getContractFactory("Verification");
+    verification = await upgrades.deployProxy(
+        Verif,
+        [backendSigner.address, [owner.address], owner.address],
+        { initializer: "initialize" }
+    );
 
     const TokenFactory = await ethers.getContractFactory('Token');
     token = await TokenFactory.deploy('Token', 'TKN');
     await token.waitForDeployment();
 
-    await token.mint(owner.address, ethers.parseEther('1000'));
-
-    const ReferralShareFactory = await ethers.getContractFactory('ReferralShare');
-    referralShare = await ReferralShareFactory.deploy();
-    await referralShare.waitForDeployment();
-    await referralShare.initialize(verification.getAddress(), [token.target], [whitelistedContract.address], owner.address);
+    const ReferralShareFactory = await ethers.getContractFactory("ReferralShare");
+    referralShare = await upgrades.deployProxy(
+        ReferralShareFactory,
+        [
+          await verification.getAddress(),
+          [await token.getAddress(), ethers.ZeroAddress],
+          [whitelistedContract.address],
+          owner.address
+        ],
+        { initializer: "initialize" }
+    );
   });
 
   describe('recordDeposit', () => {
@@ -38,11 +45,26 @@ describe('ReferralShare Contract', () => {
       await referralShare.connect(owner).addSupportedToken(tokenAddress);
 
       const amount = ethers.parseEther('100');
-      await expect(referralShare.connect(whitelistedContract).recordDeposit(referralCode, tokenAddress, amount))
-        .to.emit(referralShare, 'DepositRecorded')
-        .withArgs(referralCode, tokenAddress, amount);
 
-      const balance = await referralShare.getReferralBalance(referralCode, tokenAddress);
+      await token.mint(whitelistedContract.address, amount);
+      await token.connect(whitelistedContract).approve(referralShare.getAddress(), amount);
+
+      await expect(referralShare.connect(whitelistedContract).recordDeposit(referralCode, token.target, amount))
+          .to.emit(referralShare, 'DepositRecorded')
+          .withArgs(referralCode, token.target, amount);
+
+      const balance = await referralShare.getReferralBalance(referralCode, token.target);
+      expect(balance).to.equal(amount);
+    });
+
+    it('Should allow a whitelisted contract to record a deposit for ETH', async () => {
+      const amount = ethers.parseEther('100');
+      await expect(
+          referralShare.connect(whitelistedContract).recordDeposit(referralCode, ethers.ZeroAddress, amount, { value: amount })
+      ).to.emit(referralShare, 'DepositRecorded')
+          .withArgs(referralCode, ethers.ZeroAddress, amount);
+
+      const balance = await referralShare.getReferralBalance(referralCode, ethers.ZeroAddress);
       expect(balance).to.equal(amount);
     });
 
@@ -52,8 +74,8 @@ describe('ReferralShare Contract', () => {
 
       const amount = ethers.parseEther('100');
       await expect(referralShare.connect(user).recordDeposit(referralCode, tokenAddress, amount)).to.be.revertedWithCustomError(
-        referralShare,
-        'NotWhitelisted'
+          referralShare,
+          'NotWhitelisted'
       );
     });
 
@@ -61,8 +83,8 @@ describe('ReferralShare Contract', () => {
       const tokenAddress = ethers.Wallet.createRandom().address;
       const amount = ethers.parseEther('100');
       await expect(referralShare.connect(whitelistedContract).recordDeposit(referralCode, tokenAddress, amount)).to.be.revertedWithCustomError(
-        referralShare,
-        'UnsupportedToken'
+          referralShare,
+          'UnsupportedToken'
       );
     });
   });
@@ -71,6 +93,7 @@ describe('ReferralShare Contract', () => {
     it('Should allow a user to withdraw all balances with a valid signature', async () => {
       const amount = ethers.parseEther('1');
       const timestamp = Date.now();
+
       const signature = await getSignature(
           await referralShare.getAddress(),
           'withdrawBalances',
@@ -80,36 +103,33 @@ describe('ReferralShare Contract', () => {
           backendSigner
       );
 
-      await user.sendTransaction({
-        to: referralShare.target,
-        value: amount,
-      });
+      await token.mint(whitelistedContract.address, amount);
+      await token.connect(whitelistedContract).approve(referralShare.getAddress(), amount);
 
-      await token.connect(owner).transfer(referralShare.target, amount);
-
-      await referralShare.connect(whitelistedContract).recordDeposit(referralCode, ethers.ZeroAddress, amount);
-
+      await referralShare.connect(whitelistedContract).recordDeposit(referralCode, ethers.ZeroAddress, amount, { value: amount });
       await referralShare.connect(whitelistedContract).recordDeposit(referralCode, token.target, amount);
 
       await expect(referralShare.connect(user).withdrawBalances(referralCode, timestamp, signature))
-        .to.emit(referralShare, 'WithdrawalRecorded')
-        .withArgs(referralCode, ethers.ZeroAddress, amount)
-        .and.to.emit(referralShare, 'WithdrawalRecorded')
-        .withArgs(referralCode, token.target, amount);
+          .to.emit(referralShare, 'WithdrawalRecorded')
+          .withArgs(referralCode, ethers.ZeroAddress, amount)
+          .and.to.emit(referralShare, 'WithdrawalRecorded')
+          .withArgs(referralCode, token.target, amount);
     });
 
     it('Should revert if signature is invalid', async () => {
       const amount = ethers.parseEther('1');
       const timestamp = Date.now();
+
       const invalidSignature = await getSignature(
           await referralShare.getAddress(),
           'withdrawBalances',
           user.address,
           referralCode,
           timestamp,
-          newSigner);
+          newSigner
+      );
 
-      await referralShare.connect(whitelistedContract).recordDeposit(referralCode, ethers.ZeroAddress, amount);
+      await referralShare.connect(whitelistedContract).recordDeposit(referralCode, ethers.ZeroAddress, amount, { value: amount });
 
       await expect(referralShare.connect(user).withdrawBalances(referralCode, timestamp, invalidSignature)).to.be.revertedWithCustomError(verification, 'InvalidSigner');
     });
@@ -137,8 +157,8 @@ describe('ReferralShare Contract', () => {
       const contractAddress = ethers.Wallet.createRandom().address;
 
       await expect(referralShare.connect(owner).addWhitelistedContract(contractAddress))
-        .to.emit(referralShare, 'ContractWhitelisted')
-        .withArgs(contractAddress);
+          .to.emit(referralShare, 'ContractWhitelisted')
+          .withArgs(contractAddress);
 
       await referralShare.connect(owner).removeWhitelistedContract(contractAddress);
     });
@@ -161,7 +181,14 @@ describe('ReferralShare Contract', () => {
   ) => {
     const messageHash = ethers.keccak256(
         ethers.AbiCoder.defaultAbiCoder().encode(
-            ['address', 'string', 'address', typeof value === 'boolean' ? 'bool' : typeof value === 'string' ? 'string' : 'uint256', 'uint256', 'uint256'],
+            [
+              'address',
+              'string',
+              'address',
+              typeof value === 'boolean' ? 'bool' : typeof value === 'string' ? 'string' : 'uint256',
+              'uint256',
+              'uint256'
+            ],
             [contractAddress, methodName, userAddress, value, timestamp, chainId]
         )
     );

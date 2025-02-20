@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { ethers } from 'hardhat';
+import {ethers, upgrades} from 'hardhat';
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 
 import { NFTSale, NFT } from '../typechain-types';
@@ -47,14 +47,15 @@ describe('NFTSale Contract', function () {
     await dummyVerification.waitForDeployment();
 
     const NFTSaleFactory = await ethers.getContractFactory('OrdinaryNFTSale');
-    nftSale = await NFTSaleFactory.deploy();
-    await nftSale.waitForDeployment();
-
-    await nftSale.initialize(
-        await dummyVerification.getAddress(),
-        await dummyUniswapHelper.getAddress(),
-        owner.address,
-        [await testToken.getAddress(), zeroAddress]
+    nftSale = await upgrades.deployProxy(
+        NFTSaleFactory,
+        [
+          await dummyVerification.getAddress(),
+          await dummyUniswapHelper.getAddress(),
+          owner.address,
+          [await testToken.getAddress(), zeroAddress]
+        ],
+        { initializer: "initialize" }
     );
 
     await nft.addWhitelistedContract(await nftSale.getAddress())
@@ -224,7 +225,7 @@ describe('NFTSale Contract', function () {
           1,
           purchaseQuantity,
           zeroAddress,
-          0,
+          totalUSDAmount,
           300,
           { value: totalUSDAmount }
       )).to.emit(nftSale, 'NFTBought');
@@ -324,7 +325,7 @@ describe('NFTSale Contract', function () {
           1,
           purchaseQuantity,
           zeroAddress,
-          0,
+          totalUSDAmount,
           300,
           { value: totalUSDAmount }
       )).to.emit(nftSale, 'NFTBought');
@@ -343,7 +344,7 @@ describe('NFTSale Contract', function () {
           1,
           purchaseQuantity,
           zeroAddress,
-          0,
+          USDPrice * BigInt(purchaseQuantity),
           300,
           { value: totalUSDAmount + BigInt(excess) }
       );
@@ -376,7 +377,7 @@ describe('NFTSale Contract', function () {
           999,
           1,
           zeroAddress,
-          0,
+          999,
           300,
           { value: USDPrice }
       )).to.be.revertedWithCustomError(nftSale, 'SaleDoesNotExist');
@@ -388,7 +389,7 @@ describe('NFTSale Contract', function () {
           1,
           1,
           zeroAddress,
-          0,
+          1,
           300,
           { value: USDPrice }
       )).to.be.revertedWithCustomError(nftSale, 'SaleAlreadyStopped');
@@ -399,7 +400,7 @@ describe('NFTSale Contract', function () {
           1,
           0,
           zeroAddress,
-          0,
+          1,
           300,
           { value: 0 }
       )).to.be.revertedWithCustomError(nftSale, 'InvalidQuantity');

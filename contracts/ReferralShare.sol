@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import {IReferralShare} from "./interfaces/IReferralShare.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IVerification} from "./interfaces/IVerification.sol";
@@ -13,7 +14,11 @@ import {IVerification} from "./interfaces/IVerification.sol";
  * @dev Contract to manage token and ether balances for referral codes with backend signature verification.
  * @dev Implementation of the IReferralShare interface
  */
-contract ReferralShare is Initializable, OwnableUpgradeable, IReferralShare {
+contract ReferralShare is
+    OwnableUpgradeable,
+    ReentrancyGuardUpgradeable,
+    IReferralShare
+{
     using SafeERC20 for IERC20;
 
     /// @notice Mapping of referral codes to token/ether addresses and their balances
@@ -30,6 +35,11 @@ contract ReferralShare is Initializable, OwnableUpgradeable, IReferralShare {
 
     /// @notice Trusted forwarder address for meta-transactions
     address public trustedForwarder;
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
 
     /**
      * @dev Initializes the contract with a backend signer and supported tokens
@@ -49,31 +59,70 @@ contract ReferralShare is Initializable, OwnableUpgradeable, IReferralShare {
         }
 
         __Ownable_init(_owner);
+        __ReentrancyGuard_init();
 
         verification = _verification;
-        supportedTokens = _supportedTokens;
-        supportedTokens.push(address(0)); // Native ETH token
 
-        for (uint256 i = 0; i < _whitelistedContracts.length; i++) {
+        uint256 tokensLength = _supportedTokens.length;
+
+        for (uint256 i = 0; i < tokensLength; i++) {
+            for (uint256 j = 0; j < i; j++) {
+                if(_supportedTokens[i] == _supportedTokens[j]) {
+                    revert DuplicateAddress();
+                }
+            }
+
+            supportedTokens.push(_supportedTokens[i]);
+        }
+
+        uint256 contractsLength = _whitelistedContracts.length;
+
+        for (uint256 i = 0; i < contractsLength; i++) {
+            if(_whitelistedContracts[i] == address(0)) {
+                revert InvalidAddress();
+            }
+            for (uint256 j = 0; j < i; j++) {
+                if(_whitelistedContracts[i] == _whitelistedContracts[j]) {
+                    revert DuplicateAddress();
+                }
+            }
+
             whitelistedContracts[_whitelistedContracts[i]] = true;
-            emit ContractWhitelisted(_whitelistedContracts[i]);
         }
     }
 
     /**
-     * @inheritdoc IReferralShare
+     * @dev Records tokens or ether deposited to a referral code
+     * @param _referralCode The referral code to credit
+     * @param _token Address of the token being deposited (use address(0) for ether)
+     * @param _amount Amount of tokens or ether to record
      */
     function recordDeposit(
         string memory _referralCode,
         address _token,
         uint256 _amount
-    ) external override {
+    ) external payable nonReentrant {
         if (!whitelistedContracts[msg.sender]) {
             revert NotWhitelisted();
         }
 
         if (!_isSupportedToken(_token)) {
             revert UnsupportedToken();
+        }
+
+        if (_token != address(0) && msg.value > 0) {
+            revert ETHNotAllowedWithTokenPayment();
+        }
+
+        if (_token == address(0)) {
+            if (msg.value != _amount) {
+                revert InvalidETHAmount();
+            }
+        } else {
+            if (msg.value > 0) {
+                revert ETHNotAllowedWithTokenPayment();
+            }
+            IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
         }
 
         referralBalances[_referralCode][_token] += _amount;
@@ -88,7 +137,7 @@ contract ReferralShare is Initializable, OwnableUpgradeable, IReferralShare {
         string memory _referralCode,
         uint256 _timestamp,
         bytes memory _signature
-    ) external override {
+    ) external override nonReentrant {
         address sender = _msgSender();
 
         IVerification(verification).verifySignaturePublic(
@@ -96,7 +145,9 @@ contract ReferralShare is Initializable, OwnableUpgradeable, IReferralShare {
             _signature
         );
 
-        for (uint256 i = 0; i < supportedTokens.length; i++) {
+        uint256 length = supportedTokens.length;
+
+        for (uint256 i = 0; i < length; i++) {
             address token = supportedTokens[i];
             uint256 balance = referralBalances[_referralCode][token];
 
@@ -105,7 +156,11 @@ contract ReferralShare is Initializable, OwnableUpgradeable, IReferralShare {
 
                 if (token == address(0)) {
                     // Ether withdrawal
-                    payable(sender).transfer(balance);
+                    (bool success, ) = payable(sender).call{value: balance}("");
+
+                    if(!success) {
+                        revert ETHSendFailed();
+                    }
                 } else {
                     // Token withdrawal
                     IERC20(token).safeTransfer(sender, balance);
@@ -132,7 +187,9 @@ contract ReferralShare is Initializable, OwnableUpgradeable, IReferralShare {
      * @inheritdoc IReferralShare
      */
     function removeSupportedToken(address _token) external override onlyOwner {
-        for (uint256 i = 0; i < supportedTokens.length; i++) {
+        uint256 length = supportedTokens.length;
+
+        for (uint256 i = 0; i < length; i++) {
             if (supportedTokens[i] == _token) {
                 supportedTokens[i] = supportedTokens[
                     supportedTokens.length - 1
@@ -209,7 +266,9 @@ contract ReferralShare is Initializable, OwnableUpgradeable, IReferralShare {
      * @return bool True if the token is supported, false otherwise
      */
     function _isSupportedToken(address _token) private view returns (bool) {
-        for (uint256 i = 0; i < supportedTokens.length; i++) {
+        uint256 length = supportedTokens.length;
+
+        for (uint256 i = 0; i < length; i++) {
             if (supportedTokens[i] == _token) {
                 return true;
             }

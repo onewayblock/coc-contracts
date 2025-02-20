@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { ethers } from 'hardhat';
+import {ethers, upgrades} from 'hardhat';
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 import {
   HardCurrencyShop,
@@ -32,13 +32,14 @@ describe('HardCurrencyShop Contract', function () {
     await dummyVerification.waitForDeployment();
 
     const HardCurrencyShopFactory = await ethers.getContractFactory('HardCurrencyShop');
-    shop = await HardCurrencyShopFactory.deploy();
-    await shop.waitForDeployment();
-
-    await shop.initialize(
-        await dummyVerification.getAddress(),
-        await dummyUniswapHelper.getAddress(),
-        [await testToken.getAddress(), zeroAddress]
+    shop =await upgrades.deployProxy(
+        HardCurrencyShopFactory,
+        [
+          await dummyVerification.getAddress(),
+          await dummyUniswapHelper.getAddress(),
+          [await testToken.getAddress(), zeroAddress]
+        ],
+        { initializer: "initialize" }
     );
   });
 
@@ -52,11 +53,14 @@ describe('HardCurrencyShop Contract', function () {
       const HardCurrencyShopFactory = await ethers.getContractFactory('HardCurrencyShop');
       const shop2 = await HardCurrencyShopFactory.deploy();
       await shop2.waitForDeployment();
-      await expect(
-          shop2.initialize(
-              await dummyVerification.getAddress(),
-              ethers.ZeroAddress,
-              [await testToken.getAddress()]
+      await expect(upgrades.deployProxy(
+              HardCurrencyShopFactory,
+              [
+                await dummyVerification.getAddress(),
+                ethers.ZeroAddress,
+                [await testToken.getAddress(), zeroAddress]
+              ],
+              { initializer: "initialize" }
           )
       ).to.be.revertedWithCustomError(shop2, 'InvalidAddress');
     });
@@ -127,7 +131,7 @@ describe('HardCurrencyShop Contract', function () {
       const tx = await shop.connect(user).purchase(
           USDAmount,
           zeroAddress,
-          100000,
+          USDAmount,
           300,
           { value: USDAmount + excess }
       );

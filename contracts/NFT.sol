@@ -75,7 +75,9 @@ contract NFT is INFT, ERC721A, Ownable, IERC2981 {
         contractMetadata = _contractURI;
         backendSigner = _backendSigner;
 
-        for (uint256 i = 0; i < _whitelistedContracts.length; i++) {
+        uint256 length = _whitelistedContracts.length;
+
+        for (uint256 i = 0; i < length; i++) {
             if (_whitelistedContracts[i] == address(0)) {
                 revert InvalidAddress();
             }

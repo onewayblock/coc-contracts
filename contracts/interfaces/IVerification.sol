@@ -30,9 +30,6 @@ interface IVerification {
     /// @notice Reverts when the provided address is invalid (e.g., zero address)
     error InvalidAddress();
 
-    /// @notice Reverts when trying to overwrite existing data
-    error DataAlreadySet();
-
     /// @notice Reverts when AML/KYC requirements are not met
     error AMLKYCCheckFailed();
 

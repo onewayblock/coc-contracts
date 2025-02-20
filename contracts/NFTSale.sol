@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import {IUniswapHelper} from "./interfaces/IUniswapHelper.sol";
+import {UniswapHelper} from "./UniswapHelper.sol";
 import {INFTSale} from "./interfaces/INFTSale.sol";
 import {INFT} from "./interfaces/INFT.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IUniswapV3Factory} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
-import {IQuoterV2} from "@uniswap/v3-periphery/contracts/interfaces/IQuoterV2.sol";
 import {IVerification} from "./interfaces/IVerification.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
@@ -19,7 +18,11 @@ import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/Messa
  * @dev Contract for NFT sale with referral sharing.
  * @dev Implementation of the INFTSale interface
  */
-contract NFTSale is Initializable, OwnableUpgradeable, INFTSale {
+contract NFTSale is
+    OwnableUpgradeable,
+    ReentrancyGuardUpgradeable,
+    INFTSale
+{
     using SafeERC20 for IERC20;
 
     using ECDSA for bytes32;
@@ -47,6 +50,11 @@ contract NFTSale is Initializable, OwnableUpgradeable, INFTSale {
 
     /// @notice Crossmint address
     address public crossmintAddress;
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
 
     /**
      * @dev Initializes the contract with the necessary parameters.
@@ -91,14 +99,22 @@ contract NFTSale is Initializable, OwnableUpgradeable, INFTSale {
         }
 
         __Ownable_init(msg.sender);
+        __ReentrancyGuard_init();
 
         verification = _verification;
         uniswapHelper = _uniswapHelper;
         crossmintAddress = _crossmintAddress;
 
-        for (uint256 i = 0; i < _paymentTokens.length; i++) {
+        uint256 length = _paymentTokens.length;
+
+        for (uint256 i = 0; i < length; i++) {
+            for (uint256 j = 0; j < i; j++) {
+                if(_paymentTokens[i] == _paymentTokens[j]) {
+                    revert DuplicateAddress();
+                }
+            }
+
             supportedTokens.push(_paymentTokens[i]);
-            emit PaymentTokenAdded(_paymentTokens[i]);
         }
     }
 
@@ -285,8 +301,22 @@ contract NFTSale is Initializable, OwnableUpgradeable, INFTSale {
         address _paymentToken,
         uint256 _expectedTokenAmount,
         uint256 _slippageTolerance
-    ) public payable {
+    ) public payable nonReentrant {
         address sender = _msgSender();
+
+        if (!_isTokenSupported(_paymentToken)) {
+            revert TokenNotSupported();
+        }
+        if(_slippageTolerance == 0 || _slippageTolerance > 3000) {
+            revert InvalidSlippage();
+        }
+        if(_expectedTokenAmount == 0) {
+            revert InvalidExpectedAmount();
+        }
+        if (_paymentToken != address(0) && msg.value > 0) {
+            revert ETHNotAllowedWithTokenPayment();
+        }
+
         NFTSale storage sale = nftSales[_saleId];
         if (sale.quantity == 0) {
             revert SaleDoesNotExist();
@@ -306,10 +336,6 @@ contract NFTSale is Initializable, OwnableUpgradeable, INFTSale {
             revert InvalidQuantity();
         }
 
-        if (!_isTokenSupported(_paymentToken)) {
-            revert TokenNotSupported();
-        }
-
         uint256 totalUSDAmount = sale.USDPrice * _quantity;
 
         uint256 tokenAmount = totalUSDAmount;
@@ -319,8 +345,22 @@ contract NFTSale is Initializable, OwnableUpgradeable, INFTSale {
             totalUSDAmount
         );
 
-        if (_paymentToken != IUniswapHelper(uniswapHelper).getUSDCAddress()) {
-            tokenAmount = IUniswapHelper(uniswapHelper).getTokenAmount(
+        if (_paymentToken != UniswapHelper(uniswapHelper).getUSDCAddress()) {
+            uint256 referenceTokenAmount = UniswapHelper(uniswapHelper)
+                .getTokenAmountForOutput(
+                    _paymentToken,
+                    UniswapHelper(uniswapHelper).getUSDCAddress(),
+                    totalUSDAmount
+                );
+
+            if(_expectedTokenAmount < referenceTokenAmount - ((referenceTokenAmount * 30) / 100)) {
+                revert expectedTokenAmountExceedsDeviation();
+            }
+            if(_expectedTokenAmount > referenceTokenAmount + ((referenceTokenAmount * 30) / 100)) {
+                revert expectedTokenAmountExceedsDeviation();
+            }
+
+            tokenAmount = UniswapHelper(uniswapHelper).getTokenAmount(
                 totalUSDAmount,
                 _paymentToken,
                 _expectedTokenAmount,
@@ -378,7 +418,7 @@ contract NFTSale is Initializable, OwnableUpgradeable, INFTSale {
             revert InvalidQuantity();
         }
 
-        address USDC = IUniswapHelper(uniswapHelper).getUSDCAddress();
+        address USDC = UniswapHelper(uniswapHelper).getUSDCAddress();
         uint256 totalUSDAmount = sale.USDPrice * _quantity;
 
         IERC20(USDC).safeTransferFrom(
@@ -466,8 +506,12 @@ contract NFTSale is Initializable, OwnableUpgradeable, INFTSale {
         uint256 secondAmount = _totalTokenAmount - firstAmount;
 
         if (_paymentToken == address(0)) {
-            payable(firstTreasure).transfer(firstAmount);
-            payable(secondTreasure).transfer(secondAmount);
+            (bool success1, ) = payable(firstTreasure).call{value: firstAmount}("");
+            (bool success2, ) = payable(secondTreasure).call{value: secondAmount}("");
+
+            if(!success1 || !success2) {
+                revert ETHSendFailed();
+            }
         } else {
             IERC20(_paymentToken).safeTransfer(firstTreasure, firstAmount);
             IERC20(_paymentToken).safeTransfer(secondTreasure, secondAmount);
@@ -529,7 +573,17 @@ contract NFTSale is Initializable, OwnableUpgradeable, INFTSale {
 
             // Refund excess ETH
             if (msg.value > _tokenAmount) {
-                payable(_sender).transfer(msg.value - _tokenAmount);
+                if (_isContract(_sender)) {
+                    if(address(_sender).code.length == 0) {
+                        revert ContractCannotReceiveETH();
+                    }
+                }
+
+                (bool success, ) = payable(_sender).call{value: msg.value - _tokenAmount}("");
+
+                if(!success) {
+                    revert ETHSendFailed();
+                }
             }
         } else {
             IERC20(_paymentToken).safeTransferFrom(
@@ -546,7 +600,9 @@ contract NFTSale is Initializable, OwnableUpgradeable, INFTSale {
      * @return Boolean indicating whether the token is supported.
      */
     function _isTokenSupported(address _token) private view returns (bool) {
-        for (uint256 i = 0; i < supportedTokens.length; i++) {
+        uint256 length = supportedTokens.length;
+
+        for (uint256 i = 0; i < length; i++) {
             if (supportedTokens[i] == _token) {
                 return true;
             }
@@ -560,7 +616,9 @@ contract NFTSale is Initializable, OwnableUpgradeable, INFTSale {
      * @return Boolean indicating whether the removal was successful.
      */
     function _removePaymentToken(address _token) private returns (bool) {
-        for (uint256 i = 0; i < supportedTokens.length; i++) {
+        uint256 length = supportedTokens.length;
+
+        for (uint256 i = 0; i < length; i++) {
             if (supportedTokens[i] == _token) {
                 supportedTokens[i] = supportedTokens[
                     supportedTokens.length - 1
@@ -592,5 +650,18 @@ contract NFTSale is Initializable, OwnableUpgradeable, INFTSale {
         } else {
             sender = msg.sender;
         }
+    }
+
+    /**
+     * @dev Checks if an address is a contract
+     * @param _addr Address to check
+     * @return bool True if the address is a contract, false otherwise
+     */
+    function _isContract(address _addr) private view returns (bool) {
+        uint256 size;
+        assembly {
+            size := extcodesize(_addr)
+        }
+        return size > 0;
     }
 }

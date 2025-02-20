@@ -18,6 +18,27 @@ interface IHardCurrencyShop {
     /// @dev Error when insufflient ETH sent
     error InsufflientETHSent();
 
+    /// @dev Error when user setted invalid slippage tolerance
+    error InvalidSlippage();
+
+    /// @dev Error when  provided invalid expected amount of tokens
+    error InvalidExpectedAmount();
+
+    /// @dev Error when we are sending ethereum to address
+    error ETHSendFailed();
+
+    /// @dev Error when user send ETH while payment token is different
+    error ETHNotAllowedWithTokenPayment();
+
+    /// @dev Error when we want to send ETH to empty contract
+    error ContractCannotReceiveETH();
+
+    /// @dev Error when provided duplicated address
+    error DuplicateAddress();
+
+    /// @dev Error when expected token amount exceeds deviation
+    error expectedTokenAmountExceedsDeviation();
+
     /// @dev Event emitted when a token is added to the payment list
     event PaymentTokenAdded(address token);
 
