@@ -62,7 +62,6 @@ contract WhitelistNFTSale is Initializable, NFTSale {
      * @param _expectedTokenAmount Expected token amount by the user
      * @param _slippageTolerance Slippage tolerance in basis points (e.g., 300 for 3%)
      * @param _merkleProof Proof that user is in whitelist
-     * @param _fee Additional fee for cases when we compensate gas
      */
     function buyNFT(
         uint256 _saleId,
@@ -70,14 +69,13 @@ contract WhitelistNFTSale is Initializable, NFTSale {
         address _paymentToken,
         uint256 _expectedTokenAmount,
         uint256 _slippageTolerance,
-        bytes32[] calldata _merkleProof,
-        uint256 _fee
+        bytes32[] calldata _merkleProof
     ) public payable {
         if (merkleRoot[_saleId] == bytes32(0)) {
             revert NoMerkleRoot();
         }
 
-        bytes32 leaf = keccak256(abi.encodePacked(msg.sender));
+        bytes32 leaf = keccak256(abi.encodePacked(_msgSender()));
         if (!MerkleProof.verify(_merkleProof, merkleRoot[_saleId], leaf)) {
             revert NotInWhitelist();
         }
@@ -108,7 +106,7 @@ contract WhitelistNFTSale is Initializable, NFTSale {
             revert NoMerkleRoot();
         }
 
-        bytes32 leaf = keccak256(abi.encodePacked(msg.sender));
+        bytes32 leaf = keccak256(abi.encodePacked(_receiver));
         if (!MerkleProof.verify(_merkleProof, merkleRoot[_saleId], leaf)) {
             revert NotInWhitelist();
         }

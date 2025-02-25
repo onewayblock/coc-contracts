@@ -4,14 +4,12 @@ pragma solidity 0.8.28;
 import {UniswapHelper} from "./UniswapHelper.sol";
 import {INFTSale} from "./interfaces/INFTSale.sol";
 import {INFT} from "./interfaces/INFT.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IVerification} from "./interfaces/IVerification.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 /**
  * @title NFTSale
@@ -234,8 +232,12 @@ contract NFTSale is
      * @inheritdoc INFTSale
      */
     function delistNFTFromSale(uint256 _saleId) external override onlyOwner {
-        if (nftSales[_saleId].soldQuantity == 0) {
+        if (nftSales[_saleId].quantity == 0) {
             revert SaleDoesNotExist();
+        }
+
+        if (nftSales[_saleId].soldQuantity > 0) {
+            revert SaleAlreadyStarted();
         }
 
         delete nftSales[_saleId];
@@ -499,7 +501,6 @@ contract NFTSale is
             address firstTreasure,
             address secondTreasure,
             uint256 firstTreasurePercentage,
-            uint256 secondTreasurePercentage
         ) = IVerification(verification).getTreasureConfiguration();
 
         uint256 firstAmount = _totalTokenAmount * firstTreasurePercentage / 10000;

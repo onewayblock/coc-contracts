@@ -66,6 +66,9 @@ interface INFTSale {
     /// @dev Error when expected token amount exceeds deviation
     error expectedTokenAmountExceedsDeviation();
 
+    /// @dev Error when trying to delist NFT where at least 1 NFT was sold
+    error SaleAlreadyStarted();
+
     /// @dev Event emitted when a token is added to the payment list
     event PaymentTokenAdded(address token);
 

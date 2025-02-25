@@ -231,14 +231,15 @@ describe('NFTSale Contract', function () {
       )).to.emit(nftSale, 'NFTBought');
 
       await expect(nftSale.connect(owner).delistNFTFromSale(1))
-          .to.emit(nftSale, 'NFTDelisted')
-          .withArgs(1);
-      await expect(nftSale.getNFTSaleDetails(1))
-          .to.be.revertedWithCustomError(nftSale, 'SaleDoesNotExist');
+          .to.be.revertedWithCustomError(nftSale, 'SaleAlreadyStarted');
     });
 
     it('Should revert delisting a sale with no NFTs sold', async function () {
       await expect(nftSale.connect(owner).delistNFTFromSale(1))
+          .to.emit(nftSale, 'NFTDelisted')
+          .withArgs(1);
+
+      await expect(nftSale.getNFTSaleDetails(1))
           .to.be.revertedWithCustomError(nftSale, 'SaleDoesNotExist');
     });
   });

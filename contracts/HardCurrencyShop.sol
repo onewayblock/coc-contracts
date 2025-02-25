@@ -139,7 +139,6 @@ contract HardCurrencyShop is
             address firstTreasure,
             address secondTreasure,
             uint256 firstTreasurePercentage,
-            uint256 secondTreasurePercentage
         ) = IVerification(verification).getTreasureConfiguration();
 
         uint256 firstAmount = totalTokenAmount * firstTreasurePercentage / 10000;

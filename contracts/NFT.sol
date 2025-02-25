@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import {INFT} from "./interfaces/INFT.sol";
-import {ERC721A} from "erc721a/contracts/ERC721A.sol";
+import {ERC721A} from "./erc721a/ERC721A.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
@@ -147,7 +147,7 @@ contract NFT is INFT, ERC721A, Ownable, IERC2981 {
         }
 
         uint256 startTokenId = _nextTokenId();
-        _mint(_to, _quantity);
+        _safeMint(_to, _quantity);
 
         for (uint256 i = 0; i < _quantity; i++) {
             tokenMetadata[startTokenId + i] = _metadata[i];
@@ -168,7 +168,7 @@ contract NFT is INFT, ERC721A, Ownable, IERC2981 {
         }
 
         uint256 startTokenId = _nextTokenId();
-        _mint(_to, _quantity);
+        _safeMint(_to, _quantity);
 
         for (uint256 i = 0; i < _quantity; i++) {
             tokenMetadata[startTokenId + i] = _metadata;
@@ -277,10 +277,13 @@ contract NFT is INFT, ERC721A, Ownable, IERC2981 {
      * @return receiver Address to receive the royalty payment.
      * @return royaltyAmount Calculated royalty amount based on the sale price.
      */
-    function royaltyInfo(uint256 _tokenId, uint256 _salePrice) external view override returns (address receiver, uint256 royaltyAmount)
-    {
+    function royaltyInfo(uint256 _tokenId, uint256 _salePrice) external view override returns (address receiver, uint256 royaltyAmount) {
         royaltyAmount = (_salePrice * royaltyBasisPoints) / 10000;
         receiver = royaltyReceiver;
+
+        if (royaltyAmount == 0 && _salePrice > 0 && royaltyBasisPoints > 0) {
+            royaltyAmount = 1;
+        }
     }
 
     /**
