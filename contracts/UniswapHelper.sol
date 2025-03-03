@@ -5,6 +5,7 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {IUniswapHelper} from "./interfaces/IUniswapHelper.sol";
 import {IUniswapV3Factory} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import {IQuoterV2} from "@uniswap/v3-periphery/contracts/interfaces/IQuoterV2.sol";
+import {OracleLibrary} from "@uniswap/v3-periphery/contracts/libraries/OracleLibrary.sol";
 
 contract UniswapHelper is Initializable, IUniswapHelper {
     /// @notice USDC token address
@@ -132,12 +133,12 @@ contract UniswapHelper is Initializable, IUniswapHelper {
 
         IQuoterV2.QuoteExactOutputSingleParams memory params = IQuoterV2
             .QuoteExactOutputSingleParams({
-                tokenIn: _tokenIn,
-                tokenOut: _tokenOut,
-                fee: feeTier,
-                amount: _amountOut,
-                sqrtPriceLimitX96: 0
-            });
+            tokenIn: _tokenIn,
+            tokenOut: _tokenOut,
+            fee: feeTier,
+            amount: _amountOut,
+            sqrtPriceLimitX96: 0
+        });
 
         (uint256 tokenInAmount, , , ) = uniswapQuoter.quoteExactOutputSingle(
             params
@@ -163,12 +164,12 @@ contract UniswapHelper is Initializable, IUniswapHelper {
 
         IQuoterV2.QuoteExactInputSingleParams memory params = IQuoterV2
             .QuoteExactInputSingleParams({
-                tokenIn: _tokenIn,
-                tokenOut: _tokenOut,
-                fee: feeTier,
-                amountIn: _amountIn,
-                sqrtPriceLimitX96: 0
-            });
+            tokenIn: _tokenIn,
+            tokenOut: _tokenOut,
+            fee: feeTier,
+            amountIn: _amountIn,
+            sqrtPriceLimitX96: 0
+        });
 
         (uint256 amountOut, , , ) = uniswapQuoter.quoteExactInputSingle(params);
 
@@ -180,5 +181,52 @@ contract UniswapHelper is Initializable, IUniswapHelper {
      */
     function getUSDCAddress() external view override returns (address) {
         return usdcAddress;
+    }
+
+    /**
+     * @notice Checks that the price for the USDC/token pair, obtained via the Uniswap V3 TWAP oracle,
+     *         is within an acceptable deviation from an expected token amount.
+     * @param _token The address of the token (paired with USDC).
+     * @param _USDAmount The amount of USDC used as input.
+     * @param _expectedTokenAmount The expected output amount of the token.
+     * @param _oracleLookbackPeriod Time period (in seconds) to calculate the TWAP.
+     * @dev Reverts with PriceDeviationTooHigh if the deviation is greater than _maxDeviationPercent.
+     */
+    function checkPrice(
+        address _token,
+        uint256 _USDAmount,
+        uint256 _expectedTokenAmount,
+        uint256 _slippage,
+        uint32 _oracleLookbackPeriod
+    ) external view {
+        (address tokenA, address tokenB) = usdcAddress < _token
+            ? (usdcAddress, _token)
+            : (_token, usdcAddress);
+
+        uint24 feeTier = getFeeTier(tokenA, tokenB);
+
+        address pool = uniswapFactory.getPool(tokenA, tokenB, feeTier);
+
+        if(pool == address(0)) {
+            revert NoPoolAvailable();
+        }
+
+        (int24 timeWeightedAverageTick, ) = OracleLibrary.consult(pool, _oracleLookbackPeriod);
+
+        uint256 referenceTokenAmount = OracleLibrary.getQuoteAtTick(
+            timeWeightedAverageTick,
+            uint128(_USDAmount),
+            usdcAddress,
+            _token
+        );
+
+        uint256 deviationThreshold = (referenceTokenAmount * _slippage) / 10000;
+
+        if (
+            _expectedTokenAmount < referenceTokenAmount - deviationThreshold ||
+            _expectedTokenAmount > referenceTokenAmount + deviationThreshold
+        ) {
+            revert PriceDeviationTooHigh();
+        }
     }
 }

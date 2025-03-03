@@ -190,6 +190,7 @@ interface INFTSale {
      * @param _to Address to receive the NFTs
      * @param _quantity Number of NFTs to mint
      * @param _metadata Metadata to assign to the minted NFTs
+     * @param _timestamp Timestamp of request to make hash unique
      * @param _signature Signature of backend for action
      */
     function mintNFTs(
@@ -197,6 +198,7 @@ interface INFTSale {
         address _to,
         uint256 _quantity,
         string memory _metadata,
+        uint256 _timestamp,
         bytes memory _signature
     ) external;
 

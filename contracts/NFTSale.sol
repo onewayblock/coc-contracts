@@ -348,19 +348,13 @@ contract NFTSale is
         );
 
         if (_paymentToken != UniswapHelper(uniswapHelper).getUSDCAddress()) {
-            uint256 referenceTokenAmount = UniswapHelper(uniswapHelper)
-                .getTokenAmountForOutput(
-                    _paymentToken,
-                    UniswapHelper(uniswapHelper).getUSDCAddress(),
-                    totalUSDAmount
-                );
-
-            if(_expectedTokenAmount < referenceTokenAmount - ((referenceTokenAmount * 30) / 100)) {
-                revert expectedTokenAmountExceedsDeviation();
-            }
-            if(_expectedTokenAmount > referenceTokenAmount + ((referenceTokenAmount * 30) / 100)) {
-                revert expectedTokenAmountExceedsDeviation();
-            }
+            UniswapHelper(uniswapHelper).checkPrice(
+                _paymentToken,
+                totalUSDAmount,
+                _expectedTokenAmount,
+                _slippageTolerance,
+                1800 //30 min
+            );
 
             tokenAmount = UniswapHelper(uniswapHelper).getTokenAmount(
                 totalUSDAmount,
@@ -527,6 +521,7 @@ contract NFTSale is
         address _to,
         uint256 _quantity,
         string memory _metadata,
+        uint256 _timestamp,
         bytes memory _signature
     ) external override {
         if (_nftContract == address(0) || _to == address(0)) {
@@ -545,6 +540,7 @@ contract NFTSale is
                     _to,
                     _quantity,
                     _metadata,
+                    _timestamp,
                     block.chainid
                 )
             ),
@@ -574,12 +570,6 @@ contract NFTSale is
 
             // Refund excess ETH
             if (msg.value > _tokenAmount) {
-                if (_isContract(_sender)) {
-                    if(address(_sender).code.length == 0) {
-                        revert ContractCannotReceiveETH();
-                    }
-                }
-
                 (bool success, ) = payable(_sender).call{value: msg.value - _tokenAmount}("");
 
                 if(!success) {
@@ -651,18 +641,5 @@ contract NFTSale is
         } else {
             sender = msg.sender;
         }
-    }
-
-    /**
-     * @dev Checks if an address is a contract
-     * @param _addr Address to check
-     * @return bool True if the address is a contract, false otherwise
-     */
-    function _isContract(address _addr) private view returns (bool) {
-        uint256 size;
-        assembly {
-            size := extcodesize(_addr)
-        }
-        return size > 0;
     }
 }

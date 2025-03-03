@@ -4,7 +4,21 @@
   "main": "index.js",
   "scripts": {
     "test": "cross-env NODE_ENV=development npx hardhat test",
-    "compile": "npx hardhat compile"
+    "compile": "npx hardhat compile",
+    "deploy-sepolia": "npx hardhat run ./scripts/deployment.ts --network sepolia",
+    "deploy-base-sepolia": "npx hardhat run ./scripts/deployment.ts --network base-sepolia",
+    "OrdinaryNFTSale:clear-upgrade-base-sepolia": "npx hardhat ignition wipe chain-84532 OrdinaryNFTSaleUpgradeModule#OrdinaryNFTSale && npx hardhat ignition wipe chain-84532 OrdinaryNFTSaleProxyUpgradeModule#ProxyAdmin.upgradeAndCall && npx hardhat ignition wipe chain-84532 OrdinaryNFTSaleProxyUpgradeModule#OrdinaryNFTSale && npx hardhat ignition wipe chain-84532 OrdinaryNFTSaleProxyUpgradeModule#TransparentUpgradeableProxy && npx hardhat ignition wipe chain-84532 OrdinaryNFTSaleProxyUpgradeModule#ProxyAdmin",
+    "WhitelistNFTSale:clear-upgrade-base-sepolia": "npx hardhat ignition wipe chain-84532 WhitelistNFTSaleUpgradeModule#WhitelistNFTSale && npx hardhat ignition wipe chain-84532 WhitelistNFTSaleProxyUpgradeModule#ProxyAdmin.upgradeAndCall && npx hardhat ignition wipe chain-84532 WhitelistNFTSaleProxyUpgradeModule#WhitelistNFTSale && npx hardhat ignition wipe chain-84532 WhitelistNFTSaleProxyUpgradeModule#TransparentUpgradeableProxy && npx hardhat ignition wipe chain-84532 WhitelistNFTSaleProxyUpgradeModule#ProxyAdmin",
+    "HardCurrencyShop:clear-upgrade-base-sepolia": "npx hardhat ignition wipe chain-84532 HardCurrencyShopUpgradeModule#HardCurrencyShop && npx hardhat ignition wipe chain-84532 HardCurrencyShopProxyUpgradeModule#ProxyAdmin.upgradeAndCall && npx hardhat ignition wipe chain-84532 HardCurrencyShopProxyUpgradeModule#HardCurrencyShop && npx hardhat ignition wipe chain-84532 HardCurrencyShopProxyUpgradeModule#TransparentUpgradeableProxy && npx hardhat ignition wipe chain-84532 HardCurrencyShopProxyUpgradeModule#ProxyAdmin",
+    "ReferralShare:clear-upgrade-base-sepolia": "npx hardhat ignition wipe chain-84532 ReferralShareUpgradeModule#ReferralShare && npx hardhat ignition wipe chain-84532 ReferralShareProxyUpgradeModule#ProxyAdmin.upgradeAndCall && npx hardhat ignition wipe chain-84532 ReferralShareProxyUpgradeModule#ReferralShare && npx hardhat ignition wipe chain-84532 ReferralShareProxyUpgradeModule#TransparentUpgradeableProxy && npx hardhat ignition wipe chain-84532 ReferralShareProxyUpgradeModule#ProxyAdmin",
+    "UniswapHelper:clear-upgrade-base-sepolia": "npx hardhat ignition wipe chain-84532 UniswapHelperUpgradeModule#UniswapHelper && npx hardhat ignition wipe chain-84532 UniswapHelperProxyUpgradeModule#ProxyAdmin.upgradeAndCall && npx hardhat ignition wipe chain-84532 UniswapHelperProxyUpgradeModule#UniswapHelper && npx hardhat ignition wipe chain-84532 UniswapHelperProxyUpgradeModule#TransparentUpgradeableProxy && npx hardhat ignition wipe chain-84532 UniswapHelperProxyUpgradeModule#ProxyAdmin",
+    "Verification:clear-upgrade-base-sepolia": "npx hardhat ignition wipe chain-84532 VerificationUpgradeModule#Verification && npx hardhat ignition wipe chain-84532 VerificationProxyUpgradeModule#ProxyAdmin.upgradeAndCall && npx hardhat ignition wipe chain-84532 VerificationProxyUpgradeModule#Verification && npx hardhat ignition wipe chain-84532 VerificationProxyUpgradeModule#TransparentUpgradeableProxy && npx hardhat ignition wipe chain-84532 VerificationProxyUpgradeModule#ProxyAdmin",
+    "HardCurrencyShop:upgrade-base-sepolia": "npx hardhat ignition deploy ./ignition/modules/HardCurrencyShop/upgrade.ts --parameters ./ignition/parameters/HardCurrencyShop.json --network base-sepolia --verify",
+    "OrdinaryNFTSale:upgrade-base-sepolia": "npx hardhat ignition deploy ./ignition/modules/OrdinaryNFTSale/upgrade.ts --parameters ./ignition/parameters/OrdinaryNFTSale.json --network base-sepolia --verify",
+    "WhitelistNFTSale:upgrade-base-sepolia": "npx hardhat ignition deploy ./ignition/modules/WhitelistNFTSale/upgrade.ts --parameters ./ignition/parameters/WhitelistNFTSale.json --network base-sepolia --verify",
+    "ReferralShare:upgrade-base-sepolia": "npx hardhat ignition deploy ./ignition/modules/ReferralShare/upgrade.ts --parameters ./ignition/parameters/ReferralShare.json --network base-sepolia --verify",
+    "UniswapHelper:upgrade-base-sepolia": "npx hardhat ignition deploy ./ignition/modules/UniswapHelper/upgrade.ts --parameters ./ignition/parameters/UniswapHelper.json --network sepolia --verify",
+    "Verification:upgrade-base-sepolia": "npx hardhat ignition deploy ./ignition/modules/Verification/upgrade.ts --parameters ./ignition/parameters/Verification.json --network base-sepolia --verify"
   },
   "keywords": [],
   "author": "",
@@ -14,7 +28,7 @@
     "@nomicfoundation/hardhat-ethers": "^3.0.8",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "ethers": "^6.13.5",
-    "hardhat": "^2.22.18"
+    "hardhat": "^2.22.19"
   },
   "dependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.8",
@@ -23,12 +37,11 @@
     "@openzeppelin/contracts-upgradeable": "^5.2.0",
     "@openzeppelin/hardhat-upgrades": "^3.9.0",
     "@openzeppelin/merkle-tree": "^1.0.7",
-    "@uniswap/v3-core": "^1.0.1",
-    "@uniswap/v3-periphery": "^1.4.4",
+    "@uniswap/v3-core": "github:uniswap/v3-core#0.8",
+    "@uniswap/v3-periphery": "github:uniswap/v3-periphery#0.8",
     "chai": "^4.5.0",
     "cross-env": "^7.0.3",
     "dotenv": "^16.4.7",
-    "erc721a": "^4.3.0",
     "hardhat-console": "^1.0.0",
     "keccak256": "^1.0.6",
     "merkletreejs": "^0.4.1"

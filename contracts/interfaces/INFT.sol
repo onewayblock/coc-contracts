@@ -95,9 +95,15 @@ interface INFT {
      * @notice Updates metadata for a specific token with a backend signature.
      * @param _tokenId Token ID to update
      * @param _newMetadata New metadata string
+     * @param _timestamp Timestamp of request to make hash unique
      * @param _signature Backend signature
      */
-    function updateMetadata(uint256 _tokenId, string memory _newMetadata, bytes memory _signature) external;
+    function updateMetadata(
+        uint256 _tokenId,
+        string memory _newMetadata,
+        uint256 _timestamp,
+        bytes memory _signature
+    ) external;
 
     /**
      * @notice Returns the metadata for a contract.

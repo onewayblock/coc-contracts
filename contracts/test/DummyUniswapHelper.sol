@@ -28,4 +28,12 @@ contract DummyUniswapHelper {
     ) external pure returns (uint256) {
         return amount;
     }
+
+    function checkPrice(
+        address _token,
+        uint256 _USDAmount,
+        uint256 _expectedTokenAmount,
+        uint256 _slippage,
+        uint32 _oracleLookbackPeriod
+    ) external view {}
 }

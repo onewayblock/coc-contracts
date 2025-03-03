@@ -187,6 +187,7 @@ describe('NFT Contract', function () {
 
   describe('updateMetadata', function () {
     it('Should update metadata with a valid backend signature', async function () {
+      const timestamp = new Date().getTime();
       const initialMetadata = JSON.stringify({ id: 1, name: 'NFT 1' });
       await nft.connect(whitelistedContract).mint(user.address, 1, [initialMetadata]);
 
@@ -195,17 +196,18 @@ describe('NFT Contract', function () {
 
       const messageHash = ethers.keccak256(
           ethers.AbiCoder.defaultAbiCoder().encode(
-              ['address', 'string', 'uint256', 'string', 'uint256'],
-              [await nft.getAddress(), 'updateMetadata', tokenId, newMetadata, chainId]
+              ['address', 'string', 'uint256', 'string', 'uint256', 'uint256'],
+              [await nft.getAddress(), 'updateMetadata', tokenId, newMetadata, timestamp, chainId]
           )
       );
       const signature = await backendSigner.signMessage(ethers.getBytes(messageHash));
 
-      await nft.connect(user).updateMetadata(tokenId, newMetadata, signature);
+      await nft.connect(user).updateMetadata(tokenId, newMetadata, timestamp, signature);
       expect(await nft.tokenURI(tokenId)).to.equal(newMetadata);
     });
 
     it('Should revert if signature is invalid', async function () {
+      const timestamp = new Date().getTime();
       const initialMetadata = JSON.stringify({ id: 1, name: 'NFT 1' });
       await nft.connect(whitelistedContract).mint(user.address, 1, [initialMetadata]);
 
@@ -214,11 +216,12 @@ describe('NFT Contract', function () {
       const invalidSignature = await user.signMessage("Invalid");
 
       await expect(
-          nft.connect(user).updateMetadata(tokenId, newMetadata, invalidSignature)
+          nft.connect(user).updateMetadata(tokenId, newMetadata, timestamp, invalidSignature)
       ).to.be.revertedWithCustomError(nft, 'InvalidSigner');
     });
 
     it('Should revert if the same signature is used twice (replay protection)', async function () {
+      const timestamp = new Date().getTime();
       const initialMetadata = JSON.stringify({ id: 1, name: 'NFT 1' });
       await nft.connect(whitelistedContract).mint(user.address, 1, [initialMetadata]);
 
@@ -226,15 +229,15 @@ describe('NFT Contract', function () {
       const newMetadata = JSON.stringify({ id: 1, name: 'Updated NFT' });
       const messageHash = ethers.keccak256(
           ethers.AbiCoder.defaultAbiCoder().encode(
-              ['address', 'string', 'uint256', 'string', 'uint256'],
-              [await nft.getAddress(), 'updateMetadata', tokenId, newMetadata, chainId]
+              ['address', 'string', 'uint256', 'string', 'uint256', 'uint256'],
+              [await nft.getAddress(), 'updateMetadata', tokenId, newMetadata, timestamp, chainId]
           )
       );
       const signature = await backendSigner.signMessage(ethers.getBytes(messageHash));
 
-      await nft.connect(user).updateMetadata(tokenId, newMetadata, signature);
+      await nft.connect(user).updateMetadata(tokenId, newMetadata, timestamp, signature);
       await expect(
-          nft.connect(user).updateMetadata(tokenId, newMetadata, signature)
+          nft.connect(user).updateMetadata(tokenId, newMetadata, timestamp, signature)
       ).to.be.revertedWithCustomError(nft, 'InvalidMessageHash');
     });
   });

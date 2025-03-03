@@ -105,6 +105,7 @@ contract Verification is
     function setBaseKyc(
         address _user,
         bool _baseKyc,
+        uint256 _timestamp,
         bytes memory _signature
     ) external override {
         if (
@@ -115,6 +116,7 @@ contract Verification is
                         "setBaseKyc",
                         _user,
                         _baseKyc,
+                        _timestamp,
                         block.chainid
                     )
                 ),
@@ -134,6 +136,7 @@ contract Verification is
     function setAdvancedKyc(
         address _user,
         bool _advancedKyc,
+        uint256 _timestamp,
         bytes memory _signature
     ) external override {
         if (
@@ -144,6 +147,7 @@ contract Verification is
                         "setAdvancedKyc",
                         _user,
                         _advancedKyc,
+                        _timestamp,
                         block.chainid
                     )
                 ),
@@ -163,6 +167,7 @@ contract Verification is
     function setBaseAMLScore(
         address _user,
         uint256 _baseAMLScore,
+        uint256 _timestamp,
         bytes memory _signature
     ) external override {
         if (
@@ -173,6 +178,7 @@ contract Verification is
                         "setBaseAMLScore",
                         _user,
                         _baseAMLScore,
+                        _timestamp,
                         block.chainid
                     )
                 ),
@@ -192,6 +198,7 @@ contract Verification is
     function setAdvancedAMLScore(
         address _user,
         uint256 _advancedAMLScore,
+        uint256 _timestamp,
         bytes memory _signature
     ) external override {
         if (
@@ -202,6 +209,7 @@ contract Verification is
                         "setAdvancedAMLScore",
                         _user,
                         _advancedAMLScore,
+                        _timestamp,
                         block.chainid
                     )
                 ),

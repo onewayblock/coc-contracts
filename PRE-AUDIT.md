@@ -19,9 +19,39 @@ We will use only tokens which have USDC pool pair (like ETH, USDT, own token)
 We will block transaction if expected token amount is less than real amount
 Added additional checks
 
+### Oxorio's response
+```solidity
+        if (_paymentToken != UniswapHelper(uniswapHelper).getUSDCAddress()) {
+            uint256 referenceTokenAmount = UniswapHelper(uniswapHelper)
+                .getTokenAmountForOutput(
+                    _paymentToken,
+                    UniswapHelper(uniswapHelper).getUSDCAddress(),
+                    _USDAmount
+                );
+
+            if(_expectedTokenAmount < referenceTokenAmount - ((referenceTokenAmount * 30) / 100)) {
+                revert expectedTokenAmountExceedsDeviation();
+            }
+            if(_expectedTokenAmount > referenceTokenAmount + ((referenceTokenAmount * 30) / 100)) {
+                revert expectedTokenAmountExceedsDeviation();
+            }
+
+            totalTokenAmount = UniswapHelper(uniswapHelper).getTokenAmount(
+                _USDAmount,
+                _paymentToken,
+                _expectedTokenAmount,
+                _slippageTolerance
+            );
+        }
+```
+Unfortunately, this solution does not address the issue of manipulation, as you are using the spot price from Uniswap V3 as the `referenceTokenAmount`. Consequently, the pool can be manipulated by frontrunning the transaction. In your case, for the `referenceTokenAmount`, you need to consider the price obtained specifically from the Uniswap V3 pool’s oracle. You can learn more about how Uniswap V3 pool oracles work here: [oracle](https://docs.uniswap.org/concepts/protocol/oracle).
+
+### CLASH RESOLVING:
+Added code fixes
+
 ---
 
-#### [NEW] Unsafe ether transfer in `HardCurrencyShop`, `ReferralShare`
+#### [FIXED] Unsafe ether transfer in `HardCurrencyShop`, `ReferralShare`
 ##### Location
 File | Location | Line
 --- | --- | ---
@@ -38,7 +68,7 @@ Added code fixes
 
 ---
 
-#### [NEW] Potential reentrancy in `HardCurrencyShop`, `ReferralShare`
+#### [FIXED] Potential reentrancy in `HardCurrencyShop`, `ReferralShare`
 ##### Location
 File | Location | Line
 --- | --- | ---
@@ -55,7 +85,7 @@ Added code fixes
 
 ---
 
-#### [NEW] Possibility to send ether alongside tokens in `HardCurrencyShop`
+#### [FIXED] Possibility to send ether alongside tokens in `HardCurrencyShop`
 ##### Location
 File | Location | Line
 --- | --- | ---
@@ -115,9 +145,28 @@ We recommend adding a nonce field to the messageHash, which would be a sequentia
 
 For withdraw balance added timestamp field which will be the same as user's request timestamp
 
+### Oxorio's response:
+
+| File | Location | Line |
+| --- | --- | ---- |
+| [Verification.sol](https://github.com/onewayblock/clash-pre-audit-contracts/tree/bb6ae7cd910dd5e0e42bb4dc1f8c2bd431d95221/contracts/Verification.sol#L110) | contract `Verification` > function `setBaseKyc`          | 110  |
+| [Verification.sol](https://github.com/onewayblock/clash-pre-audit-contracts/tree/bb6ae7cd910dd5e0e42bb4dc1f8c2bd431d95221/contracts/Verification.sol#L139) | contract `Verification` > function `setAdvancedKyc`      | 139  |
+| [Verification.sol](https://github.com/onewayblock/clash-pre-audit-contracts/tree/bb6ae7cd910dd5e0e42bb4dc1f8c2bd431d95221/contracts/Verification.sol#L168) | contract `Verification` > function `setBaseAMLScore`     | 168  |
+| [Verification.sol](https://github.com/onewayblock/clash-pre-audit-contracts/tree/bb6ae7cd910dd5e0e42bb4dc1f8c2bd431d95221/contracts/Verification.sol#L197) | contract `Verification` > function `setAdvancedAMLScore` | 197  |
+| [NFTSale.sol](https://github.com/onewayblock/clash-pre-audit-contracts/tree/bb6ae7cd910dd5e0e42bb4dc1f8c2bd431d95221/contracts/NFTSale.sol#L537)           | contract `NFTSale` > function `mintNFTs`                 | 537  |
+| [NFT.sol](https://github.com/onewayblock/clash-pre-audit-contracts/tree/bb6ae7cd910dd5e0e42bb4dc1f8c2bd431d95221/contracts/NFT.sol#L186)                   | contract `NFT` > function `updateMetadata`               | 186  |
+
+In the mentioned locations, even after fixes, the restriction remains that a signed message with the specified parameters can only be verified once.
+
+For example, in the setter functions of the `Verification` contract, this limitation makes it impossible to perform updates KYC and AMLScore more than once.
+
+### CLASH RESOLVING:
+
+Added timestamp field to make each separate request unique. We can't allow to use the same data twice, but we can make it unique for each time  
+
 ---
 
-#### [NEW] A compromised address from the whitelist can withdraw all funds in `ReferralShare`
+#### [FIXED] A compromised address from the whitelist can withdraw all funds in `ReferralShare`
 ##### Location
 | File                                                                                                                                                        | Location                                            | Line |     |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ---- | --- |
@@ -134,7 +183,7 @@ About compromised addresses. For now, we're using OpenZeppelin Defender Relayer 
 
 ---
 
-#### [NEW] `userVerifications` parameters cannot be changed in `Verification`
+#### [FIXED] `userVerifications` parameters cannot be changed in `Verification`
 ##### Location
 | File | Location | Line |
 | --- | --- | --- |
@@ -155,6 +204,10 @@ Removed check for set status for these fields.
 For KYC we will have possibility to revoke verification for specific cases.
 For AML will be possible to recheck it and change in the contract
 
+### Oxorio's response:
+
+The checks were removed; however, since a signed message can only be verified once, it is not possible to modify the parameters more than once. For more details, see the response to the issue "Unable to reuse function calls with signature".
+
 ---
 
 #### [NEW] If `_msgSender` is a contract, it should be able to receive Ether in `HardCurrencyShop`
@@ -170,9 +223,32 @@ In the `_msgSender` function of the `HardCurrencyShop` contract, the returned ad
 ### CLASH RESOLVING:
 Added code fixes
 
+### Oxorio's response
+
+File | Location | Line
+--- | --- | ---
+[HardCurrencyShop.sol](https://github.com/onewayblock/clash-pre-audit-contracts/tree/bb6ae7cd910dd5e0e42bb4dc1f8c2bd431d95221/contracts/HardCurrencyShop.sol#L230) | contract `HardCurrencyShop` > function `_handlePayment` | 230
+[NFTSale.sol](https://github.com/onewayblock/clash-pre-audit-contracts/tree/bb6ae7cd910dd5e0e42bb4dc1f8c2bd431d95221/contracts/NFTSale.sol#L575) | contract `NFTSale` > function `_handlePayment` | 575
+
+In the mentioned locations, the checks ensuring that `_sender` is a contract are redundant:
+- They restrict payment execution to addresses that are contracts.
+- The condition `address(_sender).code.length == 0` is unnecessary after already checking `_isContract`, as both checks determine the contract's size.
+
+As a result of code modifications, the return value from the `call` function is now checked with `success == true`. This is sufficient to trigger a `revert` if the `_sender` address is a contract that cannot accept Ether:
+```solidity
+(bool success, ) = payable(_sender).call{value: msg.value - _tokenAmount}("");
+
+if(!success) {
+	revert ETHSendFailed();
+}
+```
+
+### CLASH RESOLVING:
+Added code fixes
+
 ---
 
-#### [NEW] Missing `_disableInitializers` call in `HardCurrencyShop`, `ReferralShare`, `Verification`
+#### [FIXED] Missing `_disableInitializers` call in `HardCurrencyShop`, `ReferralShare`, `Verification`
 ##### Location
 | File | Location | Line |
 | --- | --- | --- |
@@ -189,7 +265,7 @@ Added code fixes
 
 ---
 
-#### [NEW] Unused function in `Verification`
+#### [FIXED] Unused function in `Verification`
 ##### Location
 | File | Location | Line |
 | --- | --- | --- |
@@ -203,7 +279,7 @@ Added code fixes
 
 ---
 
-#### [NEW] Array length determination should be assigned to a separate memory variable in `HardCurrencyShop`, `ReferralShare`, `UniswapHelper`
+#### [FIXED] Array length determination should be assigned to a separate memory variable in `HardCurrencyShop`, `ReferralShare`, `UniswapHelper`
 ##### Location
 | File | Location | Line |
 | --- | --- | --- |
@@ -220,7 +296,7 @@ Added code fixes
 
 ---
 
-#### [NEW] Lack of validations in `HardCurrencyShop`
+#### [FIXED] Lack of validations in `HardCurrencyShop`
 ##### Location
 | File | Location | Line |
 | --- | --- | --- |
@@ -239,7 +315,7 @@ Added code fixes
 
 ---
 
-#### [NEW] Missing check for a zero address in `supportedTokens` for handling Ether in `HardCurrencyShop`
+#### [FIXED] Missing check for a zero address in `supportedTokens` for handling Ether in `HardCurrencyShop`
 ##### Location
 | File | Location | Line |
 | --- | --- | --- |
@@ -268,6 +344,18 @@ In the specified locations, explicit inheritance from the `Initializable` contra
 ### CLASH RESOLVING:
 Added code fixes
 
+### Oxorio's response
+
+| File | Location | Line |
+| --- | --- | --- |
+[OrdinaryNFTSale.sol](https://github.com/onewayblock/clash-pre-audit-contracts/tree/bb6ae7cd910dd5e0e42bb4dc1f8c2bd431d95221/contracts/OrdinaryNFTSale.sol#L11) | contract `OrdinaryNFTSale` | 11
+[WhitelistNFTSale.sol](https://github.com/onewayblock/clash-pre-audit-contracts/tree/bb6ae7cd910dd5e0e42bb4dc1f8c2bd431d95221/contracts/WhitelistNFTSale.sol#L13) | contract `WhitelistNFTSale` | 13
+
+For the new contracts, the finding remains relevant.
+
+### CLASH RESOLVING:
+Added code fixes
+
 ---
 
 #### [NEW] Unused imports in `HardCurrencyShop.sol`
@@ -276,6 +364,19 @@ Added code fixes
 | --- | --- | --- |
 | [HardCurrencyShop.sol](https://github.com/onewayblock/clash-pre-audit-contracts/tree/cd9722082d145d7ea2b17567d2cacc26f77f22c9/contracts/HardCurrencyShop.sol#L10) | - | 10 |
 | [HardCurrencyShop.sol](https://github.com/onewayblock/clash-pre-audit-contracts/tree/cd9722082d145d7ea2b17567d2cacc26f77f22c9/contracts/HardCurrencyShop.sol#L11) | - | 11 |
+
+
+### CLASH RESOLVING:
+Added code fixes
+
+### Oxorio's response
+
+| File | Location | Line |
+| --- | --- | --- |
+| [HardCurrencyShop.sol](https://github.com/onewayblock/clash-pre-audit-contracts/tree/bb6ae7cd910dd5e0e42bb4dc1f8c2bd431d95221/contracts/HardCurrencyShop.sol#L6) | -        | 6    |
+| [ReferralShare.sol](https://github.com/onewayblock/clash-pre-audit-contracts/tree/bb6ae7cd910dd5e0e42bb4dc1f8c2bd431d95221/contracts/ReferralShare.sol#L5)       | -        | 5    |
+
+After removing the `Initializable` contracts, there are unused imports left.
 
 
 ### CLASH RESOLVING:

@@ -249,11 +249,12 @@ describe('NFTSale Contract', function () {
     const mintQuantity = 3;
 
     it('Should mint NFTs with valid parameters and signature', async function () {
+      const timestamp = new Date().getTime();
       const chainId = (await ethers.provider.getNetwork()).chainId;
       const messageHash = ethers.keccak256(
           ethers.AbiCoder.defaultAbiCoder().encode(
-              ["address", "string", "address", "address", "uint256", "string", "uint256"],
-              [await nftSale.getAddress(), "mintNFTs", await nft.getAddress(), user.address, mintQuantity, metadata, chainId]
+              ["address", "string", "address", "address", "uint256", "string", "uint256", "uint256"],
+              [await nftSale.getAddress(), "mintNFTs", await nft.getAddress(), user.address, mintQuantity, metadata, timestamp, chainId]
           )
       );
       const signature = await owner.signMessage(ethers.getBytes(messageHash));
@@ -263,18 +264,21 @@ describe('NFTSale Contract', function () {
           user.address,
           mintQuantity,
           metadata,
+          timestamp,
           signature
       )).to.emit(nftSale, 'NFTsMinted')
           .withArgs(await nft.getAddress(), user.address, mintQuantity, metadata);
     });
 
     it('Should revert minting NFTs if _nftContract or _to is zero address', async function () {
+      const timestamp = new Date().getTime();
       const signature = "0x";
       await expect(nftSale.connect(user).mintNFTs(
           zeroAddress,
           user.address,
           mintQuantity,
           metadata,
+          timestamp,
           signature
       )).to.be.revertedWithCustomError(nftSale, 'InvalidAddress');
 
@@ -283,17 +287,20 @@ describe('NFTSale Contract', function () {
           zeroAddress,
           mintQuantity,
           metadata,
+          timestamp,
           signature
       )).to.be.revertedWithCustomError(nftSale, 'InvalidAddress');
     });
 
     it('Should revert minting NFTs if quantity is zero', async function () {
+      const timestamp = new Date().getTime();
       const signature = "0x";
       await expect(nftSale.connect(user).mintNFTs(
           await nft.getAddress(),
           user.address,
           0,
           metadata,
+          timestamp,
           signature
       )).to.be.revertedWithCustomError(nftSale, 'InvalidQuantity');
     });

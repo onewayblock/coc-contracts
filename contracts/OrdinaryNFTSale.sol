@@ -2,13 +2,12 @@
 pragma solidity 0.8.28;
 
 import "./NFTSale.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
  * @title OrdinaryNFTSale
  * @dev Standard version of NFTSale.
  */
-contract OrdinaryNFTSale is Initializable, NFTSale {
+contract OrdinaryNFTSale is NFTSale {
     /**
      * @dev Initializes the base NFTShop contract.
      * @param _kycAmlVerification Address of the KYCAMLVerification contract

@@ -3,7 +3,6 @@ pragma solidity 0.8.28;
 
 import {UniswapHelper} from "./UniswapHelper.sol";
 import {IHardCurrencyShop} from "./interfaces/IHardCurrencyShop.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -89,10 +88,10 @@ contract HardCurrencyShop is
         if (!_isTokenSupported(_paymentToken)) {
             revert TokenNotSupported();
         }
-        if(_slippageTolerance == 0 || _slippageTolerance > 3000) {
+        if (_slippageTolerance == 0 || _slippageTolerance > 3000) {
             revert InvalidSlippage();
         }
-        if(_expectedTokenAmount == 0) {
+        if (_expectedTokenAmount == 0) {
             revert InvalidExpectedAmount();
         }
 
@@ -105,19 +104,13 @@ contract HardCurrencyShop is
         uint256 totalTokenAmount = _USDAmount;
 
         if (_paymentToken != UniswapHelper(uniswapHelper).getUSDCAddress()) {
-            uint256 referenceTokenAmount = UniswapHelper(uniswapHelper)
-                .getTokenAmountForOutput(
-                    _paymentToken,
-                    UniswapHelper(uniswapHelper).getUSDCAddress(),
-                    _USDAmount
-                );
-
-            if(_expectedTokenAmount < referenceTokenAmount - ((referenceTokenAmount * 30) / 100)) {
-                revert expectedTokenAmountExceedsDeviation();
-            }
-            if(_expectedTokenAmount > referenceTokenAmount + ((referenceTokenAmount * 30) / 100)) {
-                revert expectedTokenAmountExceedsDeviation();
-            }
+            UniswapHelper(uniswapHelper).checkPrice(
+                _paymentToken,
+                _USDAmount,
+                _expectedTokenAmount,
+                _slippageTolerance,
+                1800 //30 min
+            );
 
             totalTokenAmount = UniswapHelper(uniswapHelper).getTokenAmount(
                 _USDAmount,
@@ -148,7 +141,7 @@ contract HardCurrencyShop is
             (bool success1, ) = payable(firstTreasure).call{value: firstAmount}("");
             (bool success2, ) = payable(secondTreasure).call{value: secondAmount}("");
 
-            if(!success1 || !success2) {
+            if (!success1 || !success2) {
                 revert ETHSendFailed();
             }
         } else {
@@ -226,12 +219,6 @@ contract HardCurrencyShop is
 
             // Refund excess ETH
             if (msg.value > _tokenAmount) {
-                if (_isContract(_sender)) {
-                    if(address(_sender).code.length == 0) {
-                        revert ContractCannotReceiveETH();
-                    }
-                }
-
                 (bool success, ) = payable(_sender).call{value: msg.value - _tokenAmount}("");
 
                 if(!success) {
@@ -297,18 +284,5 @@ contract HardCurrencyShop is
         } else {
             sender = msg.sender;
         }
-    }
-
-    /**
-     * @dev Checks if an address is a contract
-     * @param _addr Address to check
-     * @return bool True if the address is a contract, false otherwise
-     */
-    function _isContract(address _addr) private view returns (bool) {
-        uint256 size;
-        assembly {
-            size := extcodesize(_addr)
-        }
-        return size > 0;
     }
 }

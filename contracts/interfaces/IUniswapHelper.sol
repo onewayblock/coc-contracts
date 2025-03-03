@@ -15,6 +15,9 @@ interface IUniswapHelper {
     /// @notice Error when pool wasn’t found for token
     error NoPoolAvailable();
 
+    /// @notice Error when price deviation is too high
+    error PriceDeviationTooHigh();
+
     /**
      * @dev Determines the appropriate fee tier for a token pair.
      * @param _tokenIn Address of the input token

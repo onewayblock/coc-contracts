@@ -2,15 +2,13 @@
 pragma solidity 0.8.28;
 
 import "./NFTSale.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 /**
  * @title WhitelistNFTSale
  * @dev Extension of NFTSale with whitelist functionality using Merkle Tree.
  */
-contract WhitelistNFTSale is Initializable, NFTSale {
+contract WhitelistNFTSale is NFTSale {
     /// @notice Merkle root for the whitelist
     mapping(uint256 => bytes32) public merkleRoot;
 

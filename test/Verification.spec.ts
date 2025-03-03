@@ -41,9 +41,10 @@ describe('Verification Contract', () => {
     it('Should allow a user to set base KYC with a valid signature', async () => {
       const baseKyc = true;
 
-      const signature = await getSignature(await verification.getAddress(), 'setBaseKyc', user.address, baseKyc, backendSigner);
+      const timestamp = new Date().getTime();
+      const signature = await getSignature(await verification.getAddress(), 'setBaseKyc', user.address, baseKyc, timestamp, backendSigner);
 
-      await expect(verification.connect(user).setBaseKyc(user.address, baseKyc, signature)).to.emit(verification, 'BaseKycUpdated').withArgs(user.address, baseKyc);
+      await expect(verification.connect(user).setBaseKyc(user.address, baseKyc, timestamp, signature)).to.emit(verification, 'BaseKycUpdated').withArgs(user.address, baseKyc);
 
       const verificationStatus = await verification.getVerification(user.address);
       expect(verificationStatus.baseKyc).to.equal(baseKyc);
@@ -52,9 +53,10 @@ describe('Verification Contract', () => {
     it('Should allow a user to set advanced AML score with a valid signature', async () => {
       const advancedAMLScore = 85;
 
-      const signature = await getSignature(await verification.getAddress(), 'setAdvancedAMLScore', user.address, advancedAMLScore, backendSigner);
+      const timestamp = new Date().getTime();
+      const signature = await getSignature(await verification.getAddress(), 'setAdvancedAMLScore', user.address, advancedAMLScore, timestamp, backendSigner);
 
-      await expect(verification.connect(user).setAdvancedAMLScore(user.address, advancedAMLScore, signature))
+      await expect(verification.connect(user).setAdvancedAMLScore(user.address, advancedAMLScore, timestamp, signature))
         .to.emit(verification, 'AdvancedAMLScoreUpdated')
         .withArgs(user.address, advancedAMLScore);
 
@@ -81,9 +83,10 @@ describe('Verification Contract', () => {
 
       const baseKyc = true;
 
-      const signature = await getSignature(await verification.getAddress(), 'setBaseKyc', user.address, baseKyc, newSigner);
+      const timestamp = new Date().getTime();
+      const signature = await getSignature(await verification.getAddress(), 'setBaseKyc', user.address, baseKyc, timestamp, newSigner);
 
-      await expect(verification.connect(user).setBaseKyc(user.address, baseKyc, signature)).to.emit(verification, 'BaseKycUpdated').withArgs(user.address, baseKyc);
+      await expect(verification.connect(user).setBaseKyc(user.address, baseKyc, timestamp, signature)).to.emit(verification, 'BaseKycUpdated').withArgs(user.address, baseKyc);
     });
   });
 
@@ -169,54 +172,117 @@ describe('Verification Contract', () => {
     });
 
     it('Should revert spending at base AML limit if baseAMLScore is too high', async () => {
+      const timestamp = new Date().getTime();
       const amount = 5 * USDC_MULTIPLIER; // $5 in USDC format
-      await verification.connect(user).setBaseAMLScore(user.address, 60, await getSignature(await verification.getAddress(), 'setBaseAMLScore', user.address, 60, backendSigner));
+      await verification.connect(user).setBaseAMLScore(
+          user.address,
+          60,
+          timestamp,
+          await getSignature(await verification.getAddress(), 'setBaseAMLScore', user.address, 60, timestamp, backendSigner)
+      );
       await expect(verification.validateSpending(user.address, amount)).to.be.revertedWithCustomError(verification, 'AMLKYCCheckFailed');
     });
 
     it('Should allow spending above base AML but below advanced AML limit with valid advancedAMLScore', async () => {
-      await verification.connect(user).setAdvancedAMLScore(user.address, 20, await getSignature(await verification.getAddress(), 'setAdvancedAMLScore', user.address, 20, backendSigner));
+      const timestamp = new Date().getTime();
+      await verification.connect(user).setAdvancedAMLScore(
+          user.address,
+          20,
+          timestamp,
+          await getSignature(await verification.getAddress(), 'setAdvancedAMLScore', user.address, 20, timestamp, backendSigner)
+      );
       const amount = 40 * USDC_MULTIPLIER; // $40 in USDC format
       await expect(verification.validateSpending(user.address, amount)).not.to.be.reverted;
     });
 
     it('Should revert spending at advanced AML limit if advancedAMLScore is too high', async () => {
+      const timestamp = new Date().getTime();
       const amount = 50 * USDC_MULTIPLIER; // $50 in USDC format
-      await verification.connect(user).setAdvancedAMLScore(user.address, 60, await getSignature(await verification.getAddress(), 'setAdvancedAMLScore', user.address, 60, backendSigner));
+      await verification.connect(user).setAdvancedAMLScore(
+          user.address,
+          60,
+          timestamp,
+          await getSignature(await verification.getAddress(), 'setAdvancedAMLScore', user.address, 60, timestamp, backendSigner)
+      );
       await expect(verification.validateSpending(user.address, amount)).to.be.revertedWithCustomError(verification, 'AMLKYCCheckFailed');
     });
 
     it('Should allow spending above advanced AML but below base KYC limit with valid baseKyc', async () => {
-      await verification.connect(user).setBaseKyc(user.address, true, await getSignature(await verification.getAddress(), 'setBaseKyc', user.address, true, backendSigner));
-      await verification.connect(user).setAdvancedAMLScore(user.address, 20, await getSignature(await verification.getAddress(), 'setAdvancedAMLScore', user.address, 20, backendSigner));
+      const timestamp = new Date().getTime();
+      await verification.connect(user).setBaseKyc(
+          user.address,
+          true,
+          timestamp,
+          await getSignature(await verification.getAddress(), 'setBaseKyc', user.address, true, timestamp, backendSigner)
+      );
+      await verification.connect(user).setAdvancedAMLScore(
+          user.address,
+          20,
+          timestamp,
+          await getSignature(await verification.getAddress(), 'setAdvancedAMLScore', user.address, 20, timestamp, backendSigner)
+      );
       const amount = 80 * USDC_MULTIPLIER; // $80 in USDC format
       await expect(verification.validateSpending(user.address, amount)).not.to.be.reverted;
     });
 
     it('Should revert spending at base KYC limit if baseKyc is false', async () => {
+      const timestamp = new Date().getTime();
       const amount = 100 * USDC_MULTIPLIER; // $100 in USDC format
-      await verification.connect(user).setBaseKyc(user.address, false, await getSignature(await verification.getAddress(), 'setBaseKyc', user.address, false, backendSigner));
+      await verification.connect(user).setBaseKyc(
+          user.address,
+          false,
+          timestamp,
+          await getSignature(await verification.getAddress(), 'setBaseKyc', user.address, false, timestamp, backendSigner)
+      );
       await expect(verification.validateSpending(user.address, amount)).to.be.revertedWithCustomError(verification, 'AMLKYCCheckFailed');
     });
 
     it('Should allow spending above base KYC but below advanced KYC limit with valid advancedKyc', async () => {
-      await verification.connect(user).setAdvancedKyc(user.address, true, await getSignature(await verification.getAddress(), 'setAdvancedKyc', user.address, true, backendSigner));
-      await verification.connect(user).setAdvancedAMLScore(user.address, 20, await getSignature(await verification.getAddress(), 'setAdvancedAMLScore', user.address, 20, backendSigner));
+      const timestamp = new Date().getTime();
+      await verification.connect(user).setAdvancedKyc(
+          user.address,
+          true,
+          timestamp,
+          await getSignature(await verification.getAddress(), 'setAdvancedKyc', user.address, true, timestamp, backendSigner)
+      );
+      await verification.connect(user).setAdvancedAMLScore(
+          user.address,
+          20,
+          timestamp,
+          await getSignature(await verification.getAddress(), 'setAdvancedAMLScore', user.address, 20, timestamp, backendSigner)
+      );
       const amount = 150 * USDC_MULTIPLIER; // $150 in USDC format
       await expect(verification.validateSpending(user.address, amount)).not.to.be.reverted;
     });
 
     it('Should revert spending at advanced KYC limit if advancedKyc is false', async () => {
       const amount = 200 * USDC_MULTIPLIER; // $200 in USDC format
-      await verification.connect(user).setAdvancedKyc(user.address, false, await getSignature(await verification.getAddress(), 'setAdvancedKyc', user.address, false, backendSigner));
+      const timestamp = new Date().getTime();
+      await verification.connect(user).setAdvancedKyc(
+          user.address,
+          false,
+          timestamp,
+          await getSignature(await verification.getAddress(), 'setAdvancedKyc', user.address, false, timestamp, backendSigner)
+      );
       await expect(verification.validateSpending(user.address, amount)).to.be.revertedWithCustomError(verification, 'AMLKYCCheckFailed');
     });
 
     it('Should correctly calculate 24-hour spending and revert if limit is exceeded with base KYC and advanced AML', async () => {
       // Record spending of $150 (150 * 10^6 in USDC format)
       await verification.recordSpending(user.address, 150 * USDC_MULTIPLIER);
-      await verification.connect(user).setBaseKyc(user.address, true, await getSignature(await verification.getAddress(), 'setBaseKyc', user.address, true, backendSigner));
-      await verification.connect(user).setAdvancedAMLScore(user.address, 20, await getSignature(await verification.getAddress(), 'setAdvancedAMLScore', user.address, 20, backendSigner));
+      const timestamp = new Date().getTime();
+      await verification.connect(user).setBaseKyc(
+          user.address,
+          true,
+          timestamp,
+          await getSignature(await verification.getAddress(), 'setBaseKyc', user.address, true, timestamp, backendSigner)
+      );
+      await verification.connect(user).setAdvancedAMLScore(
+          user.address,
+          20,
+          timestamp,
+          await getSignature(await verification.getAddress(), 'setAdvancedAMLScore', user.address, 20, timestamp, backendSigner)
+      );
       // Validate additional $60 spending (total $210 within 24 hours)
       await expect(verification.validateSpending(user.address, 60 * USDC_MULTIPLIER)).to.be.revertedWithCustomError(verification, 'AMLKYCCheckFailed');
     });
@@ -256,11 +322,18 @@ describe('Verification Contract', () => {
     });
   });
 
-  const getSignature = async (contractAddress: string, methodName: string, userAddress: string, value: any, signer: SignerWithAddress) => {
+  const getSignature = async (
+      contractAddress: string,
+      methodName: string,
+      userAddress: string,
+      value: any,
+      timestamp: number,
+      signer: SignerWithAddress
+  ) => {
     const messageHash = ethers.keccak256(
       ethers.AbiCoder.defaultAbiCoder().encode(
-        ['address', 'string', 'address', typeof value === 'boolean' ? 'bool' : typeof value === 'string' ? 'string' : 'uint256', 'uint256'],
-        [contractAddress, methodName, userAddress, value, chainId]
+        ['address', 'string', 'address', typeof value === 'boolean' ? 'bool' : typeof value === 'string' ? 'string' : 'uint256', 'uint256', 'uint256'],
+        [contractAddress, methodName, userAddress, value, timestamp, chainId]
       )
     );
     return await signer.signMessage(ethers.getBytes(messageHash));

@@ -181,10 +181,11 @@ contract NFT is INFT, ERC721A, Ownable, IERC2981 {
     function updateMetadata(
         uint256 _tokenId,
         string memory _newMetadata,
+        uint256 _timestamp,
         bytes memory _signature
     ) external override {
         bytes32 messageHash = keccak256(
-            abi.encode(address(this), 'updateMetadata', _tokenId, _newMetadata, block.chainid)
+            abi.encode(address(this), 'updateMetadata', _tokenId, _newMetadata, _timestamp, block.chainid)
         );
         if (!_verifySignature(messageHash, _signature)) {
             revert InvalidSigner();
