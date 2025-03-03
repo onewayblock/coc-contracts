@@ -14,6 +14,8 @@ This document provides a brief overview of the main smart contracts in the proje
 6. [Token (USDC)](#token-usdc)
 7. [UniswapHelper](#uniswaphelper)
 8. [Verification](#verification)
+9. [Vesting](#vesting)
+10. [Claim](#claim)
 
 ---
 
@@ -184,5 +186,87 @@ Manages user AML/KYC verifications, spending limits, and referral associations w
 2. Users call the corresponding functions (e.g., `setBaseKyc`, `setReferrer`) with the signature to update their verification status.
 3. Every spending event is recorded using `recordSpending`, and the `validateSpending` function enforces AML/KYC limits on further spending.
 4. The treasure configuration is used to determine how funds are split in related contracts.
+
+---
+
+## Vesting
+
+**Purpose:**  
+Manages the gradual release of tokens to beneficiaries over a predefined vesting schedule, with support for integration with a staking contract.
+
+**Key Features:**
+
+- Allows the creation of custom vesting schedules with configurable start time, cliff, duration, and slice periods.
+- Supports token release by beneficiaries or the contract owner.
+- Enables the staking contract to release tokens on behalf of beneficiaries via `releaseAndStake`.
+- Tracks vesting schedules and released amounts for each beneficiary.
+- Provides view functions to query vesting schedules, releasable amounts, and other details.
+- Ensures secure withdrawals of unvested tokens by the contract owner.
+
+**Flow:**
+
+1. The owner creates a vesting schedule for a beneficiary using `createVestingSchedule`, specifying the start time, cliff, duration, slice period, and total token amount.
+2. Beneficiaries or the owner can release vested tokens by calling `release`, which transfers the releasable amount to the beneficiary.
+3. The staking contract can release tokens on behalf of beneficiaries using `releaseAndStake`, ensuring integration with staking mechanisms.
+4. The owner can withdraw unvested tokens using `withdraw`, provided there are sufficient withdrawable funds.
+5. View functions like `computeReleasableAmount` and `getVestingSchedule` allow users to query vesting details and releasable amounts.
+
+**Events:**
+
+- `VestingScheduleCreated`: Emitted when a new vesting schedule is created.
+- `TokensReleased`: Emitted when tokens are released to a beneficiary.
+- `FundsWithdrawn`: Emitted when the owner withdraws unvested tokens.
+- `StakingAddressUpdated`: Emitted when the staking address is updated.
+
+**Error Handling:**
+
+- Reverts with `InvalidAddress` if invalid addresses are provided.
+- Reverts with `InsufficientTokens` if there are not enough tokens to create a vesting schedule.
+- Reverts with `Unauthorized` if a non-beneficiary or non-owner attempts to release tokens.
+- Reverts with `InsufficientWithdrawableFunds` if the owner attempts to withdraw more than the available unvested tokens.
+
+---
+
+## Claim
+
+**Purpose:**  
+Manages the distribution of tokens to eligible users based on a Merkle proof, with optional staking integration and secure withdrawal functionality.
+
+**Key Features:**
+
+- Allows users to claim tokens by providing a valid Merkle proof.
+- Integrates with a staking contract to enable direct staking of claimed tokens.
+- Tracks claimed tokens to prevent double claims.
+- Enables the contract owner to withdraw tokens after a predefined unlock time.
+- Uses Merkle trees for efficient and secure whitelist verification.
+
+**Flow:**
+
+1. The owner sets the Merkle root, token address, and staking address during contract deployment.
+2. Users call `claimTokens` with their address, the amount of tokens they are eligible to claim, and a valid Merkle proof.
+3. The contract verifies the Merkle proof and ensures the user has not already claimed tokens.
+4. If the proof is valid and the contract has sufficient tokens, the tokens are transferred to the user.
+5. The owner can withdraw tokens from the contract after the unlock time by calling `withdrawTokens`.
+
+**Events:**
+
+- `MerkleRootUpdated`: Emitted when the Merkle root is updated.
+- `TokenAddressUpdated`: Emitted when the token address is updated.
+- `StakingAddressUpdated`: Emitted when the staking address is updated.
+- `TokensClaimed`: Emitted when a user successfully claims tokens.
+- `TokensWithdrawn`: Emitted when the owner withdraws tokens from the contract.
+
+**Error Handling:**
+
+- Reverts with `InvalidAddress` if invalid addresses are provided.
+- Reverts with `InvalidUnlockTime` if the unlock time is in the past.
+- Reverts with `InvalidReceiver` if the receiver is not the caller (unless called by the staking contract).
+- Reverts with `TokensAlreadyClaimed` if a user attempts to claim tokens more than once.
+- Reverts with `InvalidTokens` if the token amount is zero.
+- Reverts with `InsufficientBalance` if the contract does not have enough tokens to fulfill the claim.
+- Reverts with `InvalidProof` if the provided Merkle proof is invalid.
+- Reverts with `WithdrawLocked` if the owner attempts to withdraw tokens before the unlock time.
+- Reverts with `InvalidAmount` if the withdrawal amount is zero.
+- Reverts with `InsufficientContractBalance` if the contract does not have enough tokens for withdrawal.
 
 ---
