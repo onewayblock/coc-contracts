@@ -196,6 +196,34 @@ contract NFT is INFT, ERC721A, Ownable, IERC2981 {
     }
 
     /**
+     * @inheritdoc INFT
+     */
+    function updateMetadataBatch(
+        uint256[] memory _tokenIds,
+        string[] memory _newMetadatas,
+        uint256 _timestamp,
+        bytes[] memory _signatures
+    ) external override {
+        if(_tokenIds.length != _newMetadatas.length || _tokenIds.length != _signatures.length) {
+            revert InvalidParameters();
+        }
+
+        uint256 length = _tokenIds.length;
+
+        for(uint256 i = 0; i < length; i++) {
+            bytes32 messageHash = keccak256(
+                abi.encode(address(this), 'updateMetadata', _tokenIds[i], _newMetadatas[i], _timestamp, block.chainid)
+            );
+            if (!_verifySignature(messageHash, _signatures[i])) {
+                revert InvalidSigner();
+            }
+            tokenMetadata[_tokenIds[i]] = _newMetadatas[i];
+
+            emit MetadataUpdate(_tokenIds[i]);
+        }
+    }
+
+    /**
      * @inheritdoc ERC721A
      */
     function tokenURI(

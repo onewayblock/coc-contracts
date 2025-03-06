@@ -60,17 +60,6 @@ contract Vesting is OwnableUpgradeable, ReentrancyGuardUpgradeable, IVesting {
     }
 
     /**
-     * @dev This function is called for plain Ether transfers, i.e. for every call with empty calldata.
-     */
-    receive() external payable {}
-
-    /**
-     * @dev Fallback function is executed if none of the other functions match the function
-     * identifier or no data was provided with the function call.
-     */
-    fallback() external payable {}
-
-    /**
      * @inheritdoc IVesting
      */
     function setStakingAddress(address staking_) external onlyOwner {
@@ -96,13 +85,13 @@ contract Vesting is OwnableUpgradeable, ReentrancyGuardUpgradeable, IVesting {
         if (getWithdrawableAmount() < _amount) {
             revert InsufficientTokens();
         }
-        if (_duration <= 0) {
+        if (_duration == 0) {
             revert InvalidDuration();
         }
-        if (_amount <= 0) {
+        if (_amount == 0) {
             revert InvalidAmount();
         }
-        if (_slicePeriodSeconds < 1) {
+        if (_slicePeriodSeconds == 0) {
             revert InvalidSlicePeriod();
         }
         if (_duration < _cliff) {
@@ -110,6 +99,14 @@ contract Vesting is OwnableUpgradeable, ReentrancyGuardUpgradeable, IVesting {
         }
         if (_beneficiary == address(0)) {
             revert InvalidAddress();
+        }
+        if (_start < block.timestamp) {
+            revert InvalidStartTime();
+        }
+
+        uint256 amountPerSlice = (_amount * _slicePeriodSeconds) / _duration;
+        if (amountPerSlice == 0) {
+            revert InvalidAmountPerSlice();
         }
 
         bytes32 vestingScheduleId = computeNextVestingScheduleIdForHolder(
@@ -125,10 +122,9 @@ contract Vesting is OwnableUpgradeable, ReentrancyGuardUpgradeable, IVesting {
             _amount,
             0
         );
-        vestingSchedulesTotalAmount = vestingSchedulesTotalAmount + _amount;
+        vestingSchedulesTotalAmount += _amount;
         vestingSchedulesIds.push(vestingScheduleId);
-        uint256 currentVestingCount = holdersVestingCount[_beneficiary];
-        holdersVestingCount[_beneficiary] = currentVestingCount + 1;
+        holdersVestingCount[_beneficiary]++;
 
         emit VestingScheduleCreated(
             vestingScheduleId,
@@ -207,10 +203,8 @@ contract Vesting is OwnableUpgradeable, ReentrancyGuardUpgradeable, IVesting {
         ];
 
         uint256 vestedAmount = _computeReleasableAmount(vestingSchedule);
-        vestingSchedule.released = vestingSchedule.released + vestedAmount;
-        vestingSchedulesTotalAmount =
-            vestingSchedulesTotalAmount -
-            vestedAmount;
+        vestingSchedule.released += vestedAmount;
+        vestingSchedulesTotalAmount -= vestedAmount;
 
         SafeERC20.safeTransfer(_token, beneficiary, vestedAmount);
 
@@ -362,14 +356,14 @@ contract Vesting is OwnableUpgradeable, ReentrancyGuardUpgradeable, IVesting {
         // If the current time is after the vesting period, all tokens are releasable,
         // minus the amount already released.
         else if (
-            currentTime >= vestingSchedule.cliff + vestingSchedule.duration
+            currentTime >= vestingSchedule.start + vestingSchedule.duration
         ) {
             return vestingSchedule.amountTotal - vestingSchedule.released;
         }
         // Otherwise, some tokens are releasable.
         else {
             // Compute the number of full vesting periods that have elapsed.
-            uint256 timeFromStart = currentTime - vestingSchedule.cliff;
+            uint256 timeFromStart = currentTime - vestingSchedule.start;
             uint256 secondsPerSlice = vestingSchedule.slicePeriodSeconds;
             uint256 vestedSlicePeriods = timeFromStart / secondsPerSlice;
             uint256 vestedSeconds = vestedSlicePeriods * secondsPerSlice;

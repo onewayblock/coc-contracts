@@ -28,7 +28,7 @@ contract Claim is Ownable, ReentrancyGuard, IClaim {
     mapping(address => uint256) public tokensClaimed;
 
     /// @notice The time when the withdraw function will be unlocked
-    uint256 public unlockTime;
+    uint256 public immutable unlockTime;
 
     /**
      * @dev Constructor to initialize the contract.

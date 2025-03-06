@@ -9,7 +9,7 @@ interface IVesting {
         uint256 cliff;
         // start time of the vesting period in seconds since the UNIX epoch
         uint256 start;
-        // duration of the vesting period in seconds
+        // duration of the vesting period in seconds (from start to end, including cliff)
         uint256 duration;
         // duration of a slice period for the vesting in seconds
         uint256 slicePeriodSeconds;
@@ -36,6 +36,12 @@ interface IVesting {
 
     /// @notice Error if the duration is less than the cliff.
     error InvalidCliff();
+
+    /// @notice Error if the amount per slice equal to zero
+    error InvalidAmountPerSlice();
+
+    /// @notice Error if the start time is less than the block.timestamp
+    error InvalidStartTime();
 
     /// @notice Error if the index is out of bounds.
     error IndexOutOfBounds();

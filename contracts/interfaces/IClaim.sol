@@ -11,9 +11,6 @@ interface IClaim {
     /// @notice Reverts when the provided tokens value is zero or invalid
     error InvalidTokens();
 
-    /// @notice Reverts when the provided tokens value is greater than tokens to claim value
-    error InvalidTokensToStake();
-
     /// @notice Reverts when the provided receiver is not msg.sender
     error InvalidReceiver();
 

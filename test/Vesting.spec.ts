@@ -61,13 +61,15 @@ describe('TokenVesting', () => {
 
       const baseTime = await time.latest();
       const beneficiary = addr1;
-      const startTime = baseTime;
+      const startTime = baseTime + 1000;
       const cliff = 0;
       const duration = 1000;
-      const slicePeriodSeconds = 1;
-      const amount = 100;
+      const slicePeriodSeconds = 10;
+      const amount = 1000;
 
       await tokenVesting.createVestingSchedule(beneficiary.address, startTime, cliff, duration, slicePeriodSeconds, amount);
+
+      await time.increase(1000);
 
       expect(await tokenVesting.getVestingSchedulesCount()).to.equal(1);
       expect(await tokenVesting.getVestingSchedulesCountByBeneficiary(beneficiary.address)).to.equal(1);
@@ -79,29 +81,29 @@ describe('TokenVesting', () => {
       const halfTime = duration / 2;
       await time.increase(halfTime);
 
-      expect(await tokenVesting.connect(beneficiary).computeReleasableAmount(vestingScheduleId)).to.equal(50);
+      expect(await tokenVesting.connect(beneficiary).computeReleasableAmount(vestingScheduleId)).to.equal(500);
 
       await expect(tokenVesting.connect(addr2).release(vestingScheduleId)).to.be.revertedWithCustomError(tokenVesting, 'Unauthorized');
 
       await expect(tokenVesting.connect(beneficiary).release(vestingScheduleId))
         .to.emit(testToken, 'Transfer')
-        .withArgs(await tokenVesting.getAddress(), beneficiary.address, 50);
+        .withArgs(await tokenVesting.getAddress(), beneficiary.address, 500);
 
       expect(await tokenVesting.connect(beneficiary).computeReleasableAmount(vestingScheduleId)).to.equal(0);
 
       const vestingSchedule = await tokenVesting.getVestingSchedule(vestingScheduleId);
-      expect(vestingSchedule.released).to.equal(50);
+      expect(vestingSchedule.released).to.equal(500);
 
       await time.increase(duration + 1);
 
-      expect(await tokenVesting.connect(beneficiary).computeReleasableAmount(vestingScheduleId)).to.equal(50);
+      expect(await tokenVesting.connect(beneficiary).computeReleasableAmount(vestingScheduleId)).to.equal(500);
 
       await expect(tokenVesting.connect(beneficiary).release(vestingScheduleId))
         .to.emit(testToken, 'Transfer')
-        .withArgs(await tokenVesting.getAddress(), beneficiary.address, 50);
+        .withArgs(await tokenVesting.getAddress(), beneficiary.address, 500);
 
       const updatedVestingSchedule = await tokenVesting.getVestingSchedule(vestingScheduleId);
-      expect(updatedVestingSchedule.released).to.equal(100);
+      expect(updatedVestingSchedule.released).to.equal(1000);
 
       expect(await tokenVesting.connect(beneficiary).computeReleasableAmount(vestingScheduleId)).to.equal(0);
     });
@@ -119,23 +121,26 @@ describe('TokenVesting', () => {
       expect(vestingContractBalance).to.equal(1000);
       expect(await tokenVesting.getWithdrawableAmount()).to.equal(1000);
 
+      const baseTime = await time.latest();
       const beneficiary = addr1;
-      const startTime = await time.latest();
+      const startTime = baseTime + 1000;
       const cliff = 0;
       const duration = 1000;
-      const slicePeriodSeconds = 1;
-      const amount = 100;
+      const slicePeriodSeconds = 10;
+      const amount = 1000;
 
       await tokenVesting.createVestingSchedule(beneficiary.address, startTime, cliff, duration, slicePeriodSeconds, amount);
+
+      await time.increase(1000);
 
       const vestingScheduleId = await tokenVesting.computeVestingScheduleIdForAddressAndIndex(beneficiary.address, 0);
 
       await time.increase(duration / 2);
 
       const releasableAmount = await tokenVesting.computeReleasableAmount(vestingScheduleId);
-      expect(releasableAmount).to.equal(50);
+      expect(releasableAmount).to.equal(500);
 
-      await testToken.connect(beneficiary).approve(await staking.getAddress(), 100);
+      await testToken.connect(beneficiary).approve(await staking.getAddress(), 1000);
 
       await expect(staking.connect(beneficiary).releaseAndDeposit(vestingScheduleId))
         .to.emit(testToken, 'Transfer')
@@ -156,14 +161,17 @@ describe('TokenVesting', () => {
       expect(vestingContractBalance).to.equal(1000);
       expect(await tokenVesting.getWithdrawableAmount()).to.equal(1000);
 
+      const baseTime = await time.latest();
       const beneficiary = addr1;
-      const startTime = await time.latest();
+      const startTime = baseTime + 1000;
       const cliff = 0;
       const duration = 1000;
-      const slicePeriodSeconds = 1;
-      const amount = 100;
+      const slicePeriodSeconds = 10;
+      const amount = 1000;
 
       await tokenVesting.createVestingSchedule(beneficiary.address, startTime, cliff, duration, slicePeriodSeconds, amount);
+
+      await time.increase(1000);
 
       const vestingScheduleId = await tokenVesting.computeVestingScheduleIdForAddressAndIndex(beneficiary.address, 0);
 

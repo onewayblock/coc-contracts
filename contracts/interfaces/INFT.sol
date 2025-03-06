@@ -33,6 +33,9 @@ interface INFT {
     /// @dev Error thrown when invalid royalty basis points
     error InvalidRoyaltyBasisPoints();
 
+    /// @dev Error when received invalid parameters length
+    error InvalidParameters();
+
     /// @notice Event emitted when the backend signer address is updated
     event BackendSignerChanged(address newBackendSigner);
 
@@ -104,6 +107,21 @@ interface INFT {
         uint256 _timestamp,
         bytes memory _signature
     ) external;
+
+    /**
+     * @notice Updates metadata for a specific token with a backend signature.
+     * @param _tokenIds Array of token IDs to update
+     * @param _newMetadatas Array of new metadata strings
+     * @param _timestamp Timestamp of request to make hash unique
+     * @param _signatures Array of backend signature
+     */
+    function updateMetadataBatch(
+        uint256[] memory _tokenIds,
+        string[] memory _newMetadatas,
+        uint256 _timestamp,
+        bytes[] memory _signatures
+    ) external;
+
 
     /**
      * @notice Returns the metadata for a contract.
