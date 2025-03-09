@@ -36,6 +36,9 @@ interface INFT {
     /// @dev Error when received invalid parameters length
     error InvalidParameters();
 
+    /// @dev Error when duplicated tokens in the array
+    error DuplicateTokenUpdate();
+
     /// @notice Event emitted when the backend signer address is updated
     event BackendSignerChanged(address newBackendSigner);
 
@@ -46,7 +49,10 @@ interface INFT {
     event ContractRemovedFromWhitelist(address contractAddress);
 
     /// @notice Emitted when royalty info is updated
-    event RoyaltyInfoUpdated(address indexed receiver, uint96 royaltyBasisPoints);
+    event RoyaltyInfoUpdated(
+        address indexed receiver,
+        uint96 royaltyBasisPoints
+    );
 
     /// @notice Event emitted when transfers are unlocked
     event TransfersUnlocked();
@@ -55,7 +61,10 @@ interface INFT {
     event MetadataUpdate(uint256 _tokenId);
 
     /// @notice Emitted when the metadata of a range of tokens is updated in batch.
-    event BatchMetadataUpdate(uint256 indexed fromTokenId, uint256 indexed toTokenId);
+    event BatchMetadataUpdate(
+        uint256 indexed fromTokenId,
+        uint256 indexed toTokenId
+    );
 
     /// @notice Event emitted when contract URI changed
     event ContractURIUpdated();
@@ -84,7 +93,11 @@ interface INFT {
      * @param _quantity Number of tokens to mint
      * @param _metadata Array of metadata strings for each token
      */
-    function mint(address _to, uint256 _quantity, string[] memory _metadata) external;
+    function mint(
+        address _to,
+        uint256 _quantity,
+        string[] memory _metadata
+    ) external;
 
     /**
      * @notice Mints multiple tokens with the same metadata.
@@ -92,7 +105,11 @@ interface INFT {
      * @param _quantity Number of tokens to mint
      * @param _metadata Metadata to assign to all minted tokens
      */
-    function mintWithSameMetadata(address _to, uint256 _quantity, string memory _metadata) external;
+    function mintWithSameMetadata(
+        address _to,
+        uint256 _quantity,
+        string memory _metadata
+    ) external;
 
     /**
      * @notice Updates metadata for a specific token with a backend signature.
@@ -122,7 +139,6 @@ interface INFT {
         bytes[] memory _signatures
     ) external;
 
-
     /**
      * @notice Returns the metadata for a contract.
      * @return string Metadata of the contract
@@ -138,6 +154,8 @@ interface INFT {
      * @notice Checks if a contract is whitelisted.
      * @param _contractAddress Address of the contract to check
      * @return bool True if the contract is whitelisted, false otherwise
-    */
-    function isContractWhitelisted(address _contractAddress) external view returns (bool);
+     */
+    function isContractWhitelisted(
+        address _contractAddress
+    ) external view returns (bool);
 }

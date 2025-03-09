@@ -62,10 +62,7 @@ contract NFT is INFT, ERC721A, Ownable, IERC2981 {
         address _royaltyReceiver,
         uint96 _royaltyBasisPoints
     ) ERC721A(_name, _symbol) Ownable(_owner) {
-        if (
-            _backendSigner == address(0) ||
-            _royaltyReceiver == address(0)
-        ) {
+        if (_backendSigner == address(0) || _royaltyReceiver == address(0)) {
             revert InvalidAddress();
         }
         if (_royaltyBasisPoints > 10000) {
@@ -88,10 +85,7 @@ contract NFT is INFT, ERC721A, Ownable, IERC2981 {
         royaltyReceiver = _royaltyReceiver;
         royaltyBasisPoints = _royaltyBasisPoints;
 
-        emit RoyaltyInfoUpdated(
-            _royaltyReceiver,
-            _royaltyBasisPoints
-        );
+        emit RoyaltyInfoUpdated(_royaltyReceiver, _royaltyBasisPoints);
     }
 
     /**
@@ -185,7 +179,14 @@ contract NFT is INFT, ERC721A, Ownable, IERC2981 {
         bytes memory _signature
     ) external override {
         bytes32 messageHash = keccak256(
-            abi.encode(address(this), 'updateMetadata', _tokenId, _newMetadata, _timestamp, block.chainid)
+            abi.encode(
+                address(this),
+                "updateMetadata",
+                _tokenId,
+                _newMetadata,
+                _timestamp,
+                block.chainid
+            )
         );
         if (!_verifySignature(messageHash, _signature)) {
             revert InvalidSigner();
@@ -204,21 +205,39 @@ contract NFT is INFT, ERC721A, Ownable, IERC2981 {
         uint256 _timestamp,
         bytes[] memory _signatures
     ) external override {
-        if(_tokenIds.length != _newMetadatas.length || _tokenIds.length != _signatures.length) {
+        if (
+            _tokenIds.length != _newMetadatas.length ||
+            _tokenIds.length != _signatures.length
+        ) {
             revert InvalidParameters();
         }
 
         uint256 length = _tokenIds.length;
 
-        for(uint256 i = 0; i < length; i++) {
+        for (uint256 i = 0; i < length; i++) {
+            for (uint256 j = i + 1; j < length; j++) {
+                if (_tokenIds[i] == _tokenIds[j]) {
+                    revert DuplicateTokenUpdate();
+                }
+            }
+        }
+
+        for (uint256 i = 0; i < length; i++) {
             bytes32 messageHash = keccak256(
-                abi.encode(address(this), 'updateMetadata', _tokenIds[i], _newMetadatas[i], _timestamp, block.chainid)
+                abi.encode(
+                    address(this),
+                    "updateMetadata",
+                    _tokenIds[i],
+                    _newMetadatas[i],
+                    _timestamp,
+                    block.chainid
+                )
             );
             if (!_verifySignature(messageHash, _signatures[i])) {
                 revert InvalidSigner();
             }
-            tokenMetadata[_tokenIds[i]] = _newMetadatas[i];
 
+            tokenMetadata[_tokenIds[i]] = _newMetadatas[i];
             emit MetadataUpdate(_tokenIds[i]);
         }
     }
@@ -235,7 +254,6 @@ contract NFT is INFT, ERC721A, Ownable, IERC2981 {
 
         return tokenMetadata[_tokenId];
     }
-
 
     /**
      * @inheritdoc INFT
@@ -282,7 +300,10 @@ contract NFT is INFT, ERC721A, Ownable, IERC2981 {
      * @param _royaltyReceiver Address to receive royalty payments.
      * @param _royaltyBasisPoints Royalty fee in basis points (parts per 10,000).
      */
-    function setRoyaltyInfo(address _royaltyReceiver, uint96 _royaltyBasisPoints) external onlyOwner {
+    function setRoyaltyInfo(
+        address _royaltyReceiver,
+        uint96 _royaltyBasisPoints
+    ) external onlyOwner {
         if (_royaltyReceiver == address(0)) {
             revert InvalidAddress();
         }
@@ -293,10 +314,7 @@ contract NFT is INFT, ERC721A, Ownable, IERC2981 {
         royaltyReceiver = _royaltyReceiver;
         royaltyBasisPoints = _royaltyBasisPoints;
 
-        emit RoyaltyInfoUpdated(
-            _royaltyReceiver,
-            _royaltyBasisPoints
-        );
+        emit RoyaltyInfoUpdated(_royaltyReceiver, _royaltyBasisPoints);
     }
 
     /**
@@ -306,7 +324,10 @@ contract NFT is INFT, ERC721A, Ownable, IERC2981 {
      * @return receiver Address to receive the royalty payment.
      * @return royaltyAmount Calculated royalty amount based on the sale price.
      */
-    function royaltyInfo(uint256 _tokenId, uint256 _salePrice) external view override returns (address receiver, uint256 royaltyAmount) {
+    function royaltyInfo(
+        uint256 _tokenId,
+        uint256 _salePrice
+    ) external view override returns (address receiver, uint256 royaltyAmount) {
         royaltyAmount = (_salePrice * royaltyBasisPoints) / 10000;
         receiver = royaltyReceiver;
 
@@ -318,8 +339,9 @@ contract NFT is INFT, ERC721A, Ownable, IERC2981 {
     /**
      * @notice Override supportsInterface to include support for EIP-2981.
      */
-    function supportsInterface(bytes4 _interfaceId) public view virtual override(ERC721A, IERC165) returns (bool)
-    {
+    function supportsInterface(
+        bytes4 _interfaceId
+    ) public view virtual override(ERC721A, IERC165) returns (bool) {
         return
             _interfaceId == 0x49064906 || // ERC-4906
             _interfaceId == type(IERC2981).interfaceId ||
@@ -347,7 +369,7 @@ contract NFT is INFT, ERC721A, Ownable, IERC2981 {
     /**
      * @dev Prevents token approvals if transfers are locked.
      */
-    function approve(address _to, uint256 _tokenId) public override payable {
+    function approve(address _to, uint256 _tokenId) public payable override {
         if (transferLocked) {
             revert TransfersAreLocked();
         }
@@ -357,7 +379,10 @@ contract NFT is INFT, ERC721A, Ownable, IERC2981 {
     /**
      * @dev Prevents setting operator approvals if transfers are locked.
      */
-    function setApprovalForAll(address _operator, bool _approved) public override {
+    function setApprovalForAll(
+        address _operator,
+        bool _approved
+    ) public override {
         if (transferLocked) {
             revert TransfersAreLocked();
         }
