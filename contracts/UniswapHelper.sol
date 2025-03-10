@@ -199,9 +199,13 @@ contract UniswapHelper is Initializable, IUniswapHelper {
         uint256 _slippage,
         uint32 _oracleLookbackPeriod
     ) external view {
-        (address tokenA, address tokenB) = usdcAddress < _token
-            ? (usdcAddress, _token)
-            : (_token, usdcAddress);
+        address tokenIn = _token == address(0)
+            ? wethAddress
+            : _token;
+
+        (address tokenA, address tokenB) = usdcAddress < tokenIn
+            ? (usdcAddress, tokenIn)
+            : (tokenIn, usdcAddress);
 
         uint24 feeTier = getFeeTier(tokenA, tokenB);
 
@@ -220,7 +224,7 @@ contract UniswapHelper is Initializable, IUniswapHelper {
             timeWeightedAverageTick,
             uint128(_USDAmount),
             usdcAddress,
-            _token
+            tokenIn
         );
 
         uint256 deviationThreshold = (referenceTokenAmount * _slippage) / 10000;
