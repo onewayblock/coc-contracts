@@ -16,11 +16,7 @@ import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
  * @dev Contract for NFT sale with referral sharing.
  * @dev Implementation of the INFTSale interface
  */
-contract NFTSale is
-    OwnableUpgradeable,
-    ReentrancyGuardUpgradeable,
-    INFTSale
-{
+contract NFTSale is OwnableUpgradeable, ReentrancyGuardUpgradeable, INFTSale {
     using SafeERC20 for IERC20;
 
     using ECDSA for bytes32;
@@ -107,7 +103,7 @@ contract NFTSale is
 
         for (uint256 i = 0; i < length; i++) {
             for (uint256 j = 0; j < i; j++) {
-                if(_paymentTokens[i] == _paymentTokens[j]) {
+                if (_paymentTokens[i] == _paymentTokens[j]) {
                     revert DuplicateAddress();
                 }
             }
@@ -143,7 +139,9 @@ contract NFTSale is
     /**
      * @inheritdoc INFTSale
      */
-    function changeCrossmintAddress(address _crossmintAddress) external override onlyOwner {
+    function changeCrossmintAddress(
+        address _crossmintAddress
+    ) external override onlyOwner {
         if (_crossmintAddress == address(0)) {
             revert InvalidAddress();
         }
@@ -309,10 +307,10 @@ contract NFTSale is
         if (!_isTokenSupported(_paymentToken)) {
             revert TokenNotSupported();
         }
-        if(_slippageTolerance == 0 || _slippageTolerance > 3000) {
+        if (_slippageTolerance == 0 || _slippageTolerance > 3000) {
             revert InvalidSlippage();
         }
-        if(_expectedTokenAmount == 0) {
+        if (_expectedTokenAmount == 0) {
             revert InvalidExpectedAmount();
         }
         if (_paymentToken != address(0) && msg.value > 0) {
@@ -342,10 +340,7 @@ contract NFTSale is
 
         uint256 tokenAmount = totalUSDAmount;
 
-        IVerification(verification).validateSpending(
-            sender,
-            totalUSDAmount
-        );
+        IVerification(verification).validateSpending(sender, totalUSDAmount);
 
         if (_paymentToken != UniswapHelper(uniswapHelper).getUSDCAddress()) {
             UniswapHelper(uniswapHelper).checkPrice(
@@ -364,11 +359,7 @@ contract NFTSale is
             );
         }
 
-        _handlePayment(
-            _paymentToken,
-            tokenAmount,
-            sender
-        );
+        _handlePayment(_paymentToken, tokenAmount, sender);
 
         _finalizeNFTPurchase(
             _saleId,
@@ -393,7 +384,7 @@ contract NFTSale is
         address _receiver,
         uint256 _quantity
     ) public {
-        if(msg.sender != crossmintAddress) {
+        if (msg.sender != crossmintAddress) {
             revert InvalidAddress();
         }
 
@@ -490,21 +481,30 @@ contract NFTSale is
         );
     }
 
-    function sendMoneyToTreasure(address _paymentToken, uint256 _totalTokenAmount) internal {
+    function sendMoneyToTreasure(
+        address _paymentToken,
+        uint256 _totalTokenAmount
+    ) internal {
         (
             address firstTreasure,
             address secondTreasure,
             uint256 firstTreasurePercentage,
+
         ) = IVerification(verification).getTreasureConfiguration();
 
-        uint256 firstAmount = _totalTokenAmount * firstTreasurePercentage / 10000;
+        uint256 firstAmount = (_totalTokenAmount * firstTreasurePercentage) /
+            10000;
         uint256 secondAmount = _totalTokenAmount - firstAmount;
 
         if (_paymentToken == address(0)) {
-            (bool success1, ) = payable(firstTreasure).call{value: firstAmount}("");
-            (bool success2, ) = payable(secondTreasure).call{value: secondAmount}("");
+            (bool success1, ) = payable(firstTreasure).call{value: firstAmount}(
+                ""
+            );
+            (bool success2, ) = payable(secondTreasure).call{
+                value: secondAmount
+            }("");
 
-            if(!success1 || !success2) {
+            if (!success1 || !success2) {
                 revert ETHSendFailed();
             }
         } else {
@@ -570,9 +570,11 @@ contract NFTSale is
 
             // Refund excess ETH
             if (msg.value > _tokenAmount) {
-                (bool success, ) = payable(_sender).call{value: msg.value - _tokenAmount}("");
+                (bool success, ) = payable(_sender).call{
+                    value: msg.value - _tokenAmount
+                }("");
 
-                if(!success) {
+                if (!success) {
                     revert ETHSendFailed();
                 }
             }

@@ -133,12 +133,12 @@ contract UniswapHelper is Initializable, IUniswapHelper {
 
         IQuoterV2.QuoteExactOutputSingleParams memory params = IQuoterV2
             .QuoteExactOutputSingleParams({
-            tokenIn: _tokenIn,
-            tokenOut: _tokenOut,
-            fee: feeTier,
-            amount: _amountOut,
-            sqrtPriceLimitX96: 0
-        });
+                tokenIn: _tokenIn,
+                tokenOut: _tokenOut,
+                fee: feeTier,
+                amount: _amountOut,
+                sqrtPriceLimitX96: 0
+            });
 
         (uint256 tokenInAmount, , , ) = uniswapQuoter.quoteExactOutputSingle(
             params
@@ -164,12 +164,12 @@ contract UniswapHelper is Initializable, IUniswapHelper {
 
         IQuoterV2.QuoteExactInputSingleParams memory params = IQuoterV2
             .QuoteExactInputSingleParams({
-            tokenIn: _tokenIn,
-            tokenOut: _tokenOut,
-            fee: feeTier,
-            amountIn: _amountIn,
-            sqrtPriceLimitX96: 0
-        });
+                tokenIn: _tokenIn,
+                tokenOut: _tokenOut,
+                fee: feeTier,
+                amountIn: _amountIn,
+                sqrtPriceLimitX96: 0
+            });
 
         (uint256 amountOut, , , ) = uniswapQuoter.quoteExactInputSingle(params);
 
@@ -207,11 +207,14 @@ contract UniswapHelper is Initializable, IUniswapHelper {
 
         address pool = uniswapFactory.getPool(tokenA, tokenB, feeTier);
 
-        if(pool == address(0)) {
+        if (pool == address(0)) {
             revert NoPoolAvailable();
         }
 
-        (int24 timeWeightedAverageTick, ) = OracleLibrary.consult(pool, _oracleLookbackPeriod);
+        (int24 timeWeightedAverageTick, ) = OracleLibrary.consult(
+            pool,
+            _oracleLookbackPeriod
+        );
 
         uint256 referenceTokenAmount = OracleLibrary.getQuoteAtTick(
             timeWeightedAverageTick,

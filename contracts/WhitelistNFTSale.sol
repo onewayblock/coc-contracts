@@ -47,7 +47,10 @@ contract WhitelistNFTSale is NFTSale {
      * @param _saleId The new Merkle root
      * @param _merkleRoot The new Merkle root
      */
-    function setMerkleRoot(uint256 _saleId, bytes32 _merkleRoot) external onlyOwner {
+    function setMerkleRoot(
+        uint256 _saleId,
+        bytes32 _merkleRoot
+    ) external onlyOwner {
         merkleRoot[_saleId] = _merkleRoot;
         emit MerkleRootUpdated(_saleId, _merkleRoot);
     }
@@ -109,10 +112,6 @@ contract WhitelistNFTSale is NFTSale {
             revert NotInWhitelist();
         }
 
-        super.buyNFTFromCrossmint(
-            _saleId,
-            _receiver,
-            _quantity
-        );
+        super.buyNFTFromCrossmint(_saleId, _receiver, _quantity);
     }
 }

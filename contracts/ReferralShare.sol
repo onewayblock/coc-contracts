@@ -66,7 +66,7 @@ contract ReferralShare is
 
         for (uint256 i = 0; i < tokensLength; i++) {
             for (uint256 j = 0; j < i; j++) {
-                if(_supportedTokens[i] == _supportedTokens[j]) {
+                if (_supportedTokens[i] == _supportedTokens[j]) {
                     revert DuplicateAddress();
                 }
             }
@@ -77,11 +77,11 @@ contract ReferralShare is
         uint256 contractsLength = _whitelistedContracts.length;
 
         for (uint256 i = 0; i < contractsLength; i++) {
-            if(_whitelistedContracts[i] == address(0)) {
+            if (_whitelistedContracts[i] == address(0)) {
                 revert InvalidAddress();
             }
             for (uint256 j = 0; j < i; j++) {
-                if(_whitelistedContracts[i] == _whitelistedContracts[j]) {
+                if (_whitelistedContracts[i] == _whitelistedContracts[j]) {
                     revert DuplicateAddress();
                 }
             }
@@ -140,7 +140,16 @@ contract ReferralShare is
         address sender = _msgSender();
 
         IVerification(verification).verifySignaturePublic(
-            keccak256(abi.encode(address(this), 'withdrawBalances', sender, _referralCode, _timestamp, block.chainid)),
+            keccak256(
+                abi.encode(
+                    address(this),
+                    "withdrawBalances",
+                    sender,
+                    _referralCode,
+                    _timestamp,
+                    block.chainid
+                )
+            ),
             _signature
         );
 
@@ -157,7 +166,7 @@ contract ReferralShare is
                     // Ether withdrawal
                     (bool success, ) = payable(sender).call{value: balance}("");
 
-                    if(!success) {
+                    if (!success) {
                         revert ETHSendFailed();
                     }
                 } else {

@@ -254,10 +254,13 @@ interface IVerification {
      * @return firstTreasurePercentage Percentage of funds allocated to the first treasure (in basis points)
      * @return secondTreasurePercentage Percentage of funds allocated to the second treasure (in basis points)
      */
-    function getTreasureConfiguration() external view returns (
-        address firstTreasure,
-        address secondTreasure,
-        uint256 firstTreasurePercentage,
-        uint256 secondTreasurePercentage
-    );
+    function getTreasureConfiguration()
+        external
+        view
+        returns (
+            address firstTreasure,
+            address secondTreasure,
+            uint256 firstTreasurePercentage,
+            uint256 secondTreasurePercentage
+        );
 }

@@ -122,7 +122,12 @@ interface INFTSale {
     event NFTSaleRenewed(uint256 indexed saleId);
 
     /// @notice Event emitted when NFTs are minted
-    event NFTsMinted(address indexed nftContract, address indexed to, uint256 quantity, string metadata);
+    event NFTsMinted(
+        address indexed nftContract,
+        address indexed to,
+        uint256 quantity,
+        string metadata
+    );
 
     /**
      * @dev Adds a payment token to the list.
@@ -140,7 +145,9 @@ interface INFTSale {
      * @dev Updates the Verification contract address.
      * @param _newVerification New Verification contract address
      */
-    function updateVerificationContractAddress(address _newVerification) external;
+    function updateVerificationContractAddress(
+        address _newVerification
+    ) external;
 
     /**
      * @notice Lists an NFT for sale
@@ -182,7 +189,9 @@ interface INFTSale {
      * @param _saleId ID of the sale to fetch
      * @return NFTSale Details of the NFT sale
      */
-    function getNFTSaleDetails(uint256 _saleId) external view returns (NFTSale memory);
+    function getNFTSaleDetails(
+        uint256 _saleId
+    ) external view returns (NFTSale memory);
 
     /**
      * @notice Mints NFTs to a specified address in a given contract.

@@ -102,7 +102,9 @@ interface IReferralShare {
      * @dev Updates the Verification contract address.
      * @param _newVerification New Verification contract address
      */
-    function updateVerificationContractAddress(address _newVerification) external;
+    function updateVerificationContractAddress(
+        address _newVerification
+    ) external;
 
     /**
      * @dev Retrieves the balance of a referral code for a specific token

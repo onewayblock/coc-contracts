@@ -49,10 +49,7 @@ contract HardCurrencyShop is
         address _uniswapHelper,
         address[] memory _paymentTokens
     ) public initializer {
-        if (
-            _verification == address(0) ||
-            _uniswapHelper == address(0)
-        ) {
+        if (_verification == address(0) || _uniswapHelper == address(0)) {
             revert InvalidAddress();
         }
 
@@ -65,7 +62,7 @@ contract HardCurrencyShop is
         uint256 length = _paymentTokens.length;
         for (uint256 i = 0; i < length; i++) {
             for (uint256 j = 0; j < i; j++) {
-                if(_paymentTokens[i] == _paymentTokens[j]) {
+                if (_paymentTokens[i] == _paymentTokens[j]) {
                     revert DuplicateAddress();
                 }
             }
@@ -120,11 +117,7 @@ contract HardCurrencyShop is
             );
         }
 
-        _handlePayment(
-            _paymentToken,
-            totalTokenAmount,
-            sender
-        );
+        _handlePayment(_paymentToken, totalTokenAmount, sender);
 
         IVerification(verification).recordSpending(sender, _USDAmount);
 
@@ -132,14 +125,20 @@ contract HardCurrencyShop is
             address firstTreasure,
             address secondTreasure,
             uint256 firstTreasurePercentage,
+
         ) = IVerification(verification).getTreasureConfiguration();
 
-        uint256 firstAmount = totalTokenAmount * firstTreasurePercentage / 10000;
+        uint256 firstAmount = (totalTokenAmount * firstTreasurePercentage) /
+            10000;
         uint256 secondAmount = totalTokenAmount - firstAmount;
 
         if (_paymentToken == address(0)) {
-            (bool success1, ) = payable(firstTreasure).call{value: firstAmount}("");
-            (bool success2, ) = payable(secondTreasure).call{value: secondAmount}("");
+            (bool success1, ) = payable(firstTreasure).call{value: firstAmount}(
+                ""
+            );
+            (bool success2, ) = payable(secondTreasure).call{
+                value: secondAmount
+            }("");
 
             if (!success1 || !success2) {
                 revert ETHSendFailed();
@@ -160,7 +159,12 @@ contract HardCurrencyShop is
     /**
      * @inheritdoc IHardCurrencyShop
      */
-    function getSupportedTokens() external view override returns (address[] memory) {
+    function getSupportedTokens()
+        external
+        view
+        override
+        returns (address[] memory)
+    {
         return supportedTokens;
     }
 
@@ -219,14 +223,20 @@ contract HardCurrencyShop is
 
             // Refund excess ETH
             if (msg.value > _tokenAmount) {
-                (bool success, ) = payable(_sender).call{value: msg.value - _tokenAmount}("");
+                (bool success, ) = payable(_sender).call{
+                    value: msg.value - _tokenAmount
+                }("");
 
-                if(!success) {
+                if (!success) {
                     revert ETHSendFailed();
                 }
             }
         } else {
-            IERC20(_paymentToken).safeTransferFrom(_sender, address(this), _tokenAmount);
+            IERC20(_paymentToken).safeTransferFrom(
+                _sender,
+                address(this),
+                _tokenAmount
+            );
         }
     }
 
@@ -256,7 +266,9 @@ contract HardCurrencyShop is
 
         for (uint256 i = 0; i < length; i++) {
             if (supportedTokens[i] == _token) {
-                supportedTokens[i] = supportedTokens[supportedTokens.length - 1];
+                supportedTokens[i] = supportedTokens[
+                    supportedTokens.length - 1
+                ];
                 supportedTokens.pop();
                 return true;
             }

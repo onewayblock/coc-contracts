@@ -12,10 +12,7 @@ import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/Messa
  *      Includes functionality for secure backend signature validation.
  * @dev Implementation of the IVerification interface
  */
-contract Verification is
-    OwnableUpgradeable,
-    IVerification
-{
+contract Verification is OwnableUpgradeable, IVerification {
     using ECDSA for bytes32;
 
     /// @notice Address of the backend signer responsible for generating valid signatures
@@ -235,10 +232,7 @@ contract Verification is
     /**
      * @inheritdoc IVerification
      */
-    function recordSpending(
-        address _user,
-        uint256 _amount
-    ) external override {
+    function recordSpending(address _user, uint256 _amount) external override {
         if (!allowedContracts[msg.sender]) {
             revert NotAllowedContract();
         }
@@ -275,7 +269,7 @@ contract Verification is
     function addAllowedContract(
         address _contractAddress
     ) external override onlyOwner {
-        if(_contractAddress == address(0)) {
+        if (_contractAddress == address(0)) {
             revert InvalidAddress();
         }
 
@@ -363,7 +357,10 @@ contract Verification is
         uint256 _treasureFirstPercentage,
         uint256 _treasureSecondPercentage
     ) external override onlyOwner {
-        if (_treasureFirstAddress == address(0) || _treasureSecondAddress == address(0)) {
+        if (
+            _treasureFirstAddress == address(0) ||
+            _treasureSecondAddress == address(0)
+        ) {
             revert InvalidAddress();
         }
 
@@ -387,12 +384,16 @@ contract Verification is
     /**
      * @inheritdoc IVerification
      */
-    function getTreasureConfiguration() external view override returns (
-        address firstTreasure,
-        address secondTreasure,
-        uint256 firstTreasurePercentage,
-        uint256 secondTreasurePercentage
-    )
+    function getTreasureConfiguration()
+        external
+        view
+        override
+        returns (
+            address firstTreasure,
+            address secondTreasure,
+            uint256 firstTreasurePercentage,
+            uint256 secondTreasurePercentage
+        )
     {
         return (
             treasureFirstAddress,
@@ -481,15 +482,9 @@ contract Verification is
         bytes32 _messageHash,
         bytes memory _signature
     ) external override {
-        if (
-            !_verifySignature(
-            _messageHash,
-            _signature
-        )
-        ) {
+        if (!_verifySignature(_messageHash, _signature)) {
             revert InvalidSigner();
         }
-
     }
 
     /**
@@ -502,7 +497,7 @@ contract Verification is
         bytes32 _messageHash,
         bytes memory _signature
     ) private returns (bool) {
-        if(usedHashes[_messageHash]) {
+        if (usedHashes[_messageHash]) {
             revert InvalidMessageHash();
         }
 

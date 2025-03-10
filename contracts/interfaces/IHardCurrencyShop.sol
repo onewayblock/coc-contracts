@@ -86,7 +86,9 @@ interface IHardCurrencyShop {
      * @dev Updates the Verification contract address.
      * @param _newVerification New Verification contract address
      */
-    function updateVerificationContractAddress(address _newVerification) external;
+    function updateVerificationContractAddress(
+        address _newVerification
+    ) external;
 
     /**
      * @dev Returns the list of supported payment tokens.

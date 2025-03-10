@@ -24,7 +24,10 @@ interface IUniswapHelper {
      * @param _tokenOut Address of the output token
      * @return feeTier The best available fee tier for the token pair
      */
-    function getFeeTier(address _tokenIn, address _tokenOut) external view returns (uint24 feeTier);
+    function getFeeTier(
+        address _tokenIn,
+        address _tokenOut
+    ) external view returns (uint24 feeTier);
 
     /**
      * @dev Gets the token amount required for a specific USD amount, considering slippage.
