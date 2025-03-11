@@ -27,18 +27,21 @@ contract WhitelistNFTSale is NFTSale {
      * @param _uniswapHelper Address of the Uniswap Helper contract
      * @param _crossmintAddress Crossmint address
      * @param _paymentTokens Initial list of payment tokens
+     * @param _owner Address of the contract owner
      */
     function initialize(
         address _kycAmlVerification,
         address _uniswapHelper,
         address _crossmintAddress,
-        address[] memory _paymentTokens
+        address[] memory _paymentTokens,
+        address _owner
     ) public initializer {
         __NFTSale_init(
             _kycAmlVerification,
             _uniswapHelper,
             _crossmintAddress,
-            _paymentTokens
+            _paymentTokens,
+            _owner
         );
     }
 
@@ -71,7 +74,7 @@ contract WhitelistNFTSale is NFTSale {
         uint256 _expectedTokenAmount,
         uint256 _slippageTolerance,
         bytes32[] calldata _merkleProof
-    ) public payable {
+    ) public payable nonReentrant {
         if (merkleRoot[_saleId] == bytes32(0)) {
             revert NoMerkleRoot();
         }
@@ -81,7 +84,7 @@ contract WhitelistNFTSale is NFTSale {
             revert NotInWhitelist();
         }
 
-        super.buyNFT(
+        super._buyNFT(
             _saleId,
             _quantity,
             _paymentToken,
@@ -102,7 +105,7 @@ contract WhitelistNFTSale is NFTSale {
         address _receiver,
         uint256 _quantity,
         bytes32[] calldata _merkleProof
-    ) public {
+    ) public nonReentrant {
         if (merkleRoot[_saleId] == bytes32(0)) {
             revert NoMerkleRoot();
         }
@@ -112,6 +115,6 @@ contract WhitelistNFTSale is NFTSale {
             revert NotInWhitelist();
         }
 
-        super.buyNFTFromCrossmint(_saleId, _receiver, _quantity);
+        super._buyNFTFromCrossmint(_saleId, _receiver, _quantity);
     }
 }

@@ -16,7 +16,11 @@ import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
  * @dev Contract for NFT sale with referral sharing.
  * @dev Implementation of the INFTSale interface
  */
-contract NFTSale is OwnableUpgradeable, ReentrancyGuardUpgradeable, INFTSale {
+abstract contract NFTSale is
+    OwnableUpgradeable,
+    ReentrancyGuardUpgradeable,
+    INFTSale
+{
     using SafeERC20 for IERC20;
 
     using ECDSA for bytes32;
@@ -56,18 +60,21 @@ contract NFTSale is OwnableUpgradeable, ReentrancyGuardUpgradeable, INFTSale {
      * @param _uniswapHelper Address of the Uniswap Helper contract
      * @param _crossmintAddress Crossmint address
      * @param _paymentTokens Initial list of payment tokens
+     * @param _owner Address of the contract owner
      */
     function __NFTSale_init(
         address _verification,
         address _uniswapHelper,
         address _crossmintAddress,
-        address[] memory _paymentTokens
+        address[] memory _paymentTokens,
+        address _owner
     ) internal onlyInitializing {
         __NFTSale_init_unchained(
             _verification,
             _uniswapHelper,
             _crossmintAddress,
-            _paymentTokens
+            _paymentTokens,
+            _owner
         );
     }
 
@@ -77,22 +84,25 @@ contract NFTSale is OwnableUpgradeable, ReentrancyGuardUpgradeable, INFTSale {
      * @param _uniswapHelper Address of the Uniswap Helper contract
      * @param _crossmintAddress Crossmint address
      * @param _paymentTokens Initial list of payment tokens
+     * @param _owner Address of the contract owner
      */
     function __NFTSale_init_unchained(
         address _verification,
         address _uniswapHelper,
         address _crossmintAddress,
-        address[] memory _paymentTokens
+        address[] memory _paymentTokens,
+        address _owner
     ) internal onlyInitializing {
         if (
             _verification == address(0) ||
             _uniswapHelper == address(0) ||
-            _crossmintAddress == address(0)
+            _crossmintAddress == address(0) ||
+            _owner == address(0)
         ) {
             revert InvalidAddress();
         }
 
-        __Ownable_init(msg.sender);
+        __Ownable_init(_owner);
         __ReentrancyGuard_init();
 
         verification = _verification;
@@ -137,11 +147,12 @@ contract NFTSale is OwnableUpgradeable, ReentrancyGuardUpgradeable, INFTSale {
     }
 
     /**
-     * @inheritdoc INFTSale
+     * @notice change crossmint contract address
+     * @param _crossmintAddress Address of the Crossmint contract
      */
     function changeCrossmintAddress(
         address _crossmintAddress
-    ) external override onlyOwner {
+    ) external onlyOwner {
         if (_crossmintAddress == address(0)) {
             revert InvalidAddress();
         }
@@ -295,13 +306,13 @@ contract NFTSale is OwnableUpgradeable, ReentrancyGuardUpgradeable, INFTSale {
      * @param _expectedTokenAmount Expected token amount by the user
      * @param _slippageTolerance Slippage tolerance in basis points (e.g., 300 for 3%)
      */
-    function buyNFT(
+    function _buyNFT(
         uint256 _saleId,
         uint256 _quantity,
         address _paymentToken,
         uint256 _expectedTokenAmount,
         uint256 _slippageTolerance
-    ) public payable nonReentrant {
+    ) internal {
         address sender = _msgSender();
 
         if (!_isTokenSupported(_paymentToken)) {
@@ -379,13 +390,17 @@ contract NFTSale is OwnableUpgradeable, ReentrancyGuardUpgradeable, INFTSale {
      * @param _receiver Address of NFT receiver
      * @param _quantity Quantity of NFTs to purchase
      */
-    function buyNFTFromCrossmint(
+    function _buyNFTFromCrossmint(
         uint256 _saleId,
         address _receiver,
         uint256 _quantity
-    ) public {
-        if (msg.sender != crossmintAddress) {
+    ) internal {
+        address sender = _msgSender();
+        if (_receiver == address(0)) {
             revert InvalidAddress();
+        }
+        if (sender != crossmintAddress) {
+            revert InvalidSender();
         }
 
         NFTSale storage sale = nftSales[_saleId];
@@ -408,11 +423,7 @@ contract NFTSale is OwnableUpgradeable, ReentrancyGuardUpgradeable, INFTSale {
         address USDC = UniswapHelper(uniswapHelper).getUSDCAddress();
         uint256 totalUSDAmount = sale.USDPrice * _quantity;
 
-        IERC20(USDC).safeTransferFrom(
-            msg.sender,
-            address(this),
-            totalUSDAmount
-        );
+        IERC20(USDC).safeTransferFrom(sender, address(this), totalUSDAmount);
 
         sale.soldQuantity += _quantity;
 
@@ -460,9 +471,9 @@ contract NFTSale is OwnableUpgradeable, ReentrancyGuardUpgradeable, INFTSale {
         _sale.soldQuantity += _quantity;
         IVerification(verification).recordSpending(_sender, _totalUSDAmount);
 
-        sendMoneyToTreasure(_paymentToken, _totalTokenAmount);
-
         usersBoughtQuantity[_sender][_saleId] += _quantity;
+
+        sendMoneyToTreasure(_paymentToken, _totalTokenAmount);
 
         INFT(_sale.NFTContract).mintWithSameMetadata(
             _sender,

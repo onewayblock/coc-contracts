@@ -53,7 +53,8 @@ describe('NFTSale Contract', function () {
           await dummyVerification.getAddress(),
           await dummyUniswapHelper.getAddress(),
           owner.address,
-          [await testToken.getAddress(), zeroAddress]
+          [await testToken.getAddress(), zeroAddress],
+          owner.address
         ],
         { initializer: "initialize" }
     );

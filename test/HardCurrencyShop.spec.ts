@@ -37,7 +37,8 @@ describe('HardCurrencyShop Contract', function () {
         [
           await dummyVerification.getAddress(),
           await dummyUniswapHelper.getAddress(),
-          [await testToken.getAddress(), zeroAddress]
+          [await testToken.getAddress(), zeroAddress],
+            owner.address
         ],
         { initializer: "initialize" }
     );
@@ -58,7 +59,8 @@ describe('HardCurrencyShop Contract', function () {
               [
                 await dummyVerification.getAddress(),
                 ethers.ZeroAddress,
-                [await testToken.getAddress(), zeroAddress]
+                [await testToken.getAddress(), zeroAddress],
+                owner.address
               ],
               { initializer: "initialize" }
           )

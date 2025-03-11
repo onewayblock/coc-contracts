@@ -43,17 +43,23 @@ contract HardCurrencyShop is
      * @param _verification Address of the Verification contract
      * @param _uniswapHelper Address of the Uniswap Helper contract
      * @param _paymentTokens Initial list of payment tokens
+     * @param _owner Address of the contract owner
      */
     function initialize(
         address _verification,
         address _uniswapHelper,
-        address[] memory _paymentTokens
+        address[] memory _paymentTokens,
+        address _owner
     ) public initializer {
-        if (_verification == address(0) || _uniswapHelper == address(0)) {
+        if (
+            _verification == address(0) ||
+            _uniswapHelper == address(0) ||
+            _owner == address(0)
+        ) {
             revert InvalidAddress();
         }
 
-        __Ownable_init(msg.sender);
+        __Ownable_init(_owner);
         __ReentrancyGuard_init();
 
         verification = _verification;
@@ -90,6 +96,9 @@ contract HardCurrencyShop is
         }
         if (_expectedTokenAmount == 0) {
             revert InvalidExpectedAmount();
+        }
+        if (_USDAmount == 0) {
+            revert InvalidUSDAmount();
         }
 
         if (_paymentToken != address(0) && msg.value > 0) {

@@ -39,6 +39,9 @@ interface INFT {
     /// @dev Error when duplicated tokens in the array
     error DuplicateTokenUpdate();
 
+    /// @dev Error when ETH was sent
+    error InvalidETHAmount();
+
     /// @notice Event emitted when the backend signer address is updated
     event BackendSignerChanged(address newBackendSigner);
 

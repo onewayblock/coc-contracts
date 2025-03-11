@@ -24,6 +24,9 @@ interface INFTSale {
     /// @dev Error when a token is not supported
     error TokenNotSupported();
 
+    /// @dev Error when a sender address is invalid
+    error InvalidSender();
+
     /// @dev Error when a provided address is invalid
     error InvalidAddress();
 
@@ -216,10 +219,4 @@ interface INFTSale {
      * @return Array of supported token addresses.
      */
     function getSupportedTokens() external view returns (address[] memory);
-
-    /**
-     * @notice change crossmint contract address
-     * @param _crossmintAddress Address of the Crossmint contract
-     */
-    function changeCrossmintAddress(address _crossmintAddress) external;
 }

@@ -39,6 +39,9 @@ interface IHardCurrencyShop {
     /// @dev Error when expected token amount exceeds deviation
     error expectedTokenAmountExceedsDeviation();
 
+    /// @dev Error when expected USD amount is 0.
+    error InvalidUSDAmount();
+
     /// @dev Event emitted when a token is added to the payment list
     event PaymentTokenAdded(address token);
 

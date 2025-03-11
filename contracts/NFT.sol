@@ -365,17 +365,15 @@ contract NFT is INFT, ERC721A, Ownable, IERC2981 {
 
         emit TransfersUnlocked();
     }
-
-    /**
-     * @dev Prevents token approvals if transfers are locked.
-     */
+/**
+ * @dev Prevents token approvals if transfers are locked.
+ */
     function approve(address _to, uint256 _tokenId) public payable override {
-        if (transferLocked) {
-            revert TransfersAreLocked();
-        }
+        if (msg.value != 0) revert InvalidETHAmount();
+        if (transferLocked) revert TransfersAreLocked();
+
         super.approve(_to, _tokenId);
     }
-
     /**
      * @dev Prevents setting operator approvals if transfers are locked.
      */
